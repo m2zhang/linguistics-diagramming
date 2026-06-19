@@ -75,30 +75,6 @@ export function Toolbar() {
     toast('SVG downloaded', 'success');
   };
 
-  const doSaveProject = () => {
-    if (!guard()) return;
-    try {
-      const state = useTreeStore.getState();
-      const projectData = {
-        tree: state.tree,
-        annotations: state.annotations,
-        version: '1.0'
-      };
-      const blob = new Blob([JSON.stringify(projectData, null, 2)], { type: 'application/json' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = 'syntax-tree-project.json';
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      URL.revokeObjectURL(url);
-      toast('Project JSON downloaded', 'success');
-    } catch {
-      toast('Project save failed', 'error');
-    }
-  };
-
   return (
     <header className="topbar">
       <div className="brand">
@@ -116,9 +92,6 @@ export function Toolbar() {
       </button>
       <button className="btn" onClick={doSvg}>
         <DownloadIcon /> SVG
-      </button>
-      <button className="btn" onClick={doSaveProject} title="Save the current tree and all annotations to a JSON file">
-        <DownloadIcon /> Save Project
       </button>
       <button
         className="btn danger"
