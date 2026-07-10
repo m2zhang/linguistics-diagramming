@@ -1,3 +1,6 @@
+import { AccountMenu } from '../auth/AccountMenu';
+import { SaveStatus } from './SaveStatus';
+import { TreeTitle } from './TreeTitle';
 import { useTreeStore } from '../store/treeStore';
 import { useUiStore } from '../store/uiStore';
 import {
@@ -82,6 +85,8 @@ export function Toolbar() {
         SyntaxTree
         <span className="sub">Modern linguistics tree editor</span>
       </div>
+      <TreeTitle />
+      <SaveStatus />
       <div className="topbar-spacer" />
 
       <button className="btn" onClick={doPng}>
@@ -132,6 +137,9 @@ export function Toolbar() {
       >
         {theme === 'dark' ? <SunIcon /> : <MoonIcon />}
       </button>
+
+      <span className="toolbar-divider" />
+      <AccountMenu />
     </header>
   );
 }
