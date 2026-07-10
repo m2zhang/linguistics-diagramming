@@ -6,11 +6,11 @@ import { TemplatePicker } from './components/TemplatePicker';
 import { ToastHost } from './components/ToastHost';
 import { Toolbar } from './components/Toolbar';
 import { TreeCanvas } from './components/TreeCanvas';
-import { usePersistence } from './hooks/usePersistence';
+import { useCloudSync } from './hooks/useCloudSync';
 import { useUiStore } from './store/uiStore';
 
 export default function App() {
-  usePersistence();
+  useCloudSync();
   const sidebarOpen = useUiStore((s) => s.sidebarOpen);
   const rightpaneOpen = useUiStore((s) => s.rightpaneOpen);
 

@@ -7,12 +7,16 @@ import '@fontsource/montserrat/600.css';
 import '@fontsource/montserrat/700.css';
 import './styles/theme.css';
 import './styles/app.css';
+import './styles/auth.css';
 import App from './App';
+import { AuthGate } from './auth/AuthGate';
 
 document.documentElement.setAttribute('data-theme', 'light');
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <App />
+    <AuthGate>
+      <App />
+    </AuthGate>
   </StrictMode>,
 );
