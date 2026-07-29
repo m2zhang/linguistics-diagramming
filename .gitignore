@@ -128,3 +128,8 @@ dist-ssr/
 
 # Claude settings/history
 .claude/
+
+# Backend (server/) build output and local file storage
+server/dist/
+server/uploads/*
+!server/uploads/.gitkeep

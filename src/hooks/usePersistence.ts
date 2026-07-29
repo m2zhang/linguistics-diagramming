@@ -5,6 +5,24 @@ import { Annotations, TreeNode } from '../model/types';
 const KEY = 'syntaxtree.session.v1';
 
 /**
+ * Call this immediately before navigating to /editor with pre-loaded content
+ * (a lecture tree, an assignment template/draft, a submission to grade) —
+ * anything that puts specific content in the store via replaceTree/
+ * setAnnotations rather than letting the editor start from whatever the user
+ * was last doing. Without this, usePersistence's restore-on-mount effect
+ * below runs *after* the navigation and silently overwrites the pre-loaded
+ * content with the last sessionStorage snapshot, since App only mounts (and
+ * usePersistence only restores) once the route actually changes.
+ */
+export function primeEditorSession(tree: TreeNode | null, annotations: Annotations): void {
+  try {
+    sessionStorage.setItem(KEY, JSON.stringify({ tree, annotations }));
+  } catch {
+    /* quota / serialization issues are non-fatal — the direct store write still applies */
+  }
+}
+
+/**
  * Persist the tree to sessionStorage so a refresh keeps the user's work (US.6).
  * Restores once on mount, then writes on every tree change (debounced).
  */

@@ -32,6 +32,8 @@ const CATEGORIZED_SYMBOLS: SymbolCategory[] = [
   },
 ];
 
+const STUDENT_CATEGORIES = new Set(['Phrasal Categories', 'Lexical Categories']);
+
 export function SymbolLibrary() {
   const tree = useTreeStore((s) => s.tree);
   const selectedId = useTreeStore((s) => s.selectedId);
@@ -39,6 +41,12 @@ export function SymbolLibrary() {
   const updateNote = useTreeStore((s) => s.updateNote);
   const notes = useTreeStore((s) => s.annotations.notes);
   const toast = useUiStore((s) => s.toast);
+  const appMode = useUiStore((s) => s.appMode);
+
+  const visibleCategories =
+    appMode === 'instructor'
+      ? CATEGORIZED_SYMBOLS
+      : CATEGORIZED_SYMBOLS.filter((c) => STUDENT_CATEGORIES.has(c.category));
 
   const [expanded, setExpanded] = useState(false);
 
@@ -105,7 +113,7 @@ export function SymbolLibrary() {
         </>
       ) : (
         <div className="all-symbols-container">
-          {CATEGORIZED_SYMBOLS.map((cat) => (
+          {visibleCategories.map((cat) => (
             <div key={cat.category} className="symbol-category-group">
               <div className="symbol-category-title">{cat.category}</div>
               <div className="symbol-grid mini">

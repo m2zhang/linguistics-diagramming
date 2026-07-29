@@ -6,6 +6,10 @@ import { TemplatePicker } from './components/TemplatePicker';
 import { ToastHost } from './components/ToastHost';
 import { Toolbar } from './components/Toolbar';
 import { TreeCanvas } from './components/TreeCanvas';
+import { SaveToLectureBanner } from './components/lecture/SaveToLectureBanner';
+import { CreateAssignmentBanner } from './components/assignment/CreateAssignmentBanner';
+import { AssignmentWorkBanner } from './components/assignment/AssignmentWorkBanner';
+import { GradeBanner } from './components/assignment/GradeBanner';
 import { usePersistence } from './hooks/usePersistence';
 import { useUiStore } from './store/uiStore';
 
@@ -13,6 +17,7 @@ export default function App() {
   usePersistence();
   const sidebarOpen = useUiStore((s) => s.sidebarOpen);
   const rightpaneOpen = useUiStore((s) => s.rightpaneOpen);
+  const appMode = useUiStore((s) => s.appMode);
 
   let gridCols = '';
   if (sidebarOpen) gridCols += '244px ';
@@ -31,14 +36,18 @@ export default function App() {
           </aside>
         )}
 
-        <main style={{ minWidth: 0 }}>
+        <main style={{ minWidth: 0, position: 'relative' }}>
           <TreeCanvas />
+          <SaveToLectureBanner />
+          <CreateAssignmentBanner />
+          <AssignmentWorkBanner />
+          <GradeBanner />
         </main>
 
         {rightpaneOpen && (
           <aside className="rightpane">
             <BracketEditor />
-            <LatexOutput />
+            {appMode === 'instructor' && <LatexOutput />}
           </aside>
         )}
       </div>

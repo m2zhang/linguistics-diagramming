@@ -81,10 +81,22 @@ export function TreeCanvas() {
   const redo = useTreeStore((s) => s.redo);
   const toast = useUiStore((s) => s.toast);
 
+  const appMode = useUiStore((s) => s.appMode);
+
   const wrapRef = useRef<HTMLDivElement>(null);
   const svgEl = useRef<SVGSVGElement>(null);
   const [view, setView] = useState<ViewState>({ scale: 1, tx: 0, ty: 0 });
   const [tool, setTool] = useState<Tool>('select');
+
+  // Draw/box/arrow are instructor-only tools (see toolButton gating below).
+  // If a mode switch happens mid-session while one of them is selected
+  // (e.g. an instructor previewing as student), fall back to 'select' so
+  // the canvas never ends up in a tool that no longer has a button for it.
+  useEffect(() => {
+    if (appMode === 'student' && (tool === 'draw' || tool === 'box' || tool === 'arrow')) {
+      setTool('select');
+    }
+  }, [appMode, tool]);
   const [strokeColor, setStrokeColor] = useState('var(--danger)');
   const [panning, setPanning] = useState(false);
   const [liveBox, setLiveBox] = useState<{ x: number; y: number; w: number; h: number } | null>(null);
@@ -979,12 +991,12 @@ export function TreeCanvas() {
       {/* Tool palette: top-left of the canvas */}
       <div className="canvas-toolbar tools">
         {toolButton('select', <CursorIcon />, 'Select / pan (drag canvas, double-click to rename)')}
-        {toolButton('draw', <PenIcon />, 'Draw freehand')}
+        {appMode === 'instructor' && toolButton('draw', <PenIcon />, 'Draw freehand')}
         {toolButton('text', <TextIcon />, 'Add text note (click on canvas)')}
-        {toolButton('arrow', <ArrowIcon />, 'Draw connector arrow between elements')}
-        {toolButton('box', <BoxIcon />, 'Draw box around elements')}
+        {appMode === 'instructor' && toolButton('arrow', <ArrowIcon />, 'Draw connector arrow between elements')}
+        {appMode === 'instructor' && toolButton('box', <BoxIcon />, 'Draw box around elements')}
         {toolButton('erase', <EraserIcon />, 'Eraser (click a drawing, note, box, or arrow)')}
-        
+
         {(tool === 'draw' || tool === 'text' || tool === 'box' || tool === 'arrow') && (
           <>
             <span className="toolbar-divider" />
@@ -1016,7 +1028,7 @@ export function TreeCanvas() {
           <RedoIcon />
         </button>
 
-        {(annotations.notes.length > 0 || annotations.strokes.length > 0) && (
+        {appMode === 'instructor' && (annotations.notes.length > 0 || annotations.strokes.length > 0) && (
           <>
             <span className="toolbar-divider" />
             <button
