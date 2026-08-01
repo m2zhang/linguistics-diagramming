@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import bcrypt from 'bcrypt';
 import { z } from 'zod';
+import crypto from 'crypto';
 import { pool } from '../db/pool';
 import { requireAuth } from '../middleware/requireAuth';
 
@@ -97,6 +98,72 @@ authRouter.post('/logout', (req, res) => {
     res.sendStatus(204);
   });
 });
+
+const forgotPasswordSchema = z.object({
+  email: z.string().trim().toLowerCase().email(),
+});
+
+authRouter.post('/forgot-password', async (req, res) => {
+  const parsed = forgotPasswordSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: 'invalid request' });
+    return;
+  }
+  const { email } = parsed.data;
+
+  // Generate a random token
+  const token = crypto.randomBytes(32).toString('hex');
+  const tokenExpires = new Date(Date.now() + 3600000); // 1 hour from now
+
+  const { rowCount } = await pool.query(
+    `UPDATE users 
+     SET reset_token = $1, reset_token_expires = $2 
+     WHERE email = $3`,
+    [token, tokenExpires, email]
+  );
+
+  // In a real app, you would send an email here.
+  // We're returning the token for local development.
+  res.json({ message: 'If that email exists, a reset link has been generated.', devToken: rowCount && rowCount > 0 ? token : null });
+});
+
+const resetPasswordSchema = z.object({
+  token: z.string().min(1),
+  password: z.string().min(8, 'password must be at least 8 characters'),
+});
+
+authRouter.post('/reset-password', async (req, res) => {
+  const parsed = resetPasswordSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.issues[0]?.message ?? 'invalid request' });
+    return;
+  }
+  const { token, password } = parsed.data;
+
+  const { rows } = await pool.query<{ id: string; reset_token_expires: Date }>(
+    `SELECT id, reset_token_expires FROM users WHERE reset_token = $1`,
+    [token]
+  );
+  
+  const user = rows[0];
+
+  if (!user || user.reset_token_expires < new Date()) {
+    res.status(400).json({ error: 'Invalid or expired reset token' });
+    return;
+  }
+
+  const passwordHash = await bcrypt.hash(password, BCRYPT_COST);
+
+  await pool.query(
+    `UPDATE users 
+     SET password_hash = $1, reset_token = NULL, reset_token_expires = NULL 
+     WHERE id = $2`,
+    [passwordHash, user.id]
+  );
+
+  res.json({ message: 'Password has been successfully reset' });
+});
+
 
 authRouter.get('/me', requireAuth, async (req, res) => {
   const { rows } = await pool.query<{

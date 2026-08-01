@@ -15,7 +15,7 @@ const NAV_ITEMS = [
 export function CourseSidebar() {
   return (
     <nav className="flex-1 py-3">
-      <ul className="flex flex-col gap-0.5 px-3">
+      <ul className="flex flex-col gap-0.5 px-3 list-none">
         {NAV_ITEMS.map(({ to, label, icon: Icon }) => (
           <li key={to}>
             <NavLink
@@ -26,7 +26,7 @@ export function CourseSidebar() {
                   'font-[family-name:var(--font-display)]',
                   isActive
                     ? 'bg-accent text-white'
-                    : 'text-text-dim hover:bg-bg-input hover:text-text',
+                    : 'text-text-dim dark:text-gray-200 hover:bg-bg-input hover:text-text dark:hover:text-white',
                 )
               }
             >

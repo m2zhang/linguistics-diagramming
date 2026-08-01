@@ -7,7 +7,7 @@ import { Button } from '../../components/ui/button';
 import { ProfileAvatar } from '../../components/ui/avatar';
 import { Card, CardContent } from '../../components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../components/ui/table';
-import { getRoster, regenerateJoinCode, removeStudent, type RosterEntry } from '../../data/courses';
+import { getRoster, regenerateJoinCode, removeStudent, updateParticipantRole, type RosterEntry } from '../../data/courses';
 import { useUiStore } from '../../store/uiStore';
 import { copyText } from '../../utils/clipboard';
 import type { CourseOutletContext } from './CourseShell';
@@ -16,7 +16,7 @@ interface Participant {
   id: string;
   name: string;
   email: string;
-  type: 'Instructor' | 'Student';
+  type: 'Instructor' | 'TA' | 'Student';
   joinedAt: string | null;
 }
 
@@ -42,7 +42,7 @@ export function CourseParticipants() {
     const instructor: Participant = {
       id: course.instructorId,
       name: course.instructorName ?? 'Instructor',
-      email: '',
+      email: course.instructorEmail ?? '',
       type: 'Instructor',
       joinedAt: null,
     };
@@ -50,7 +50,7 @@ export function CourseParticipants() {
       id: s.id,
       name: s.displayName,
       email: s.email,
-      type: 'Student',
+      type: s.role === 'ta' ? 'TA' : 'Student',
       joinedAt: s.joinedAt,
     }));
     return [instructor, ...students];
@@ -69,6 +69,17 @@ export function CourseParticipants() {
       toast('Student removed', 'success');
     } catch {
       toast('Could not remove student', 'error');
+    }
+  };
+
+  const onRoleChange = async (studentId: string, newType: 'Student' | 'TA') => {
+    try {
+      const dbRole = newType === 'TA' ? 'ta' : 'student';
+      await updateParticipantRole(course.id, studentId, dbRole);
+      setRoster((prev) => prev?.map((s) => (s.id === studentId ? { ...s, role: dbRole } : s)) ?? prev);
+      toast('Role updated', 'success');
+    } catch {
+      toast('Could not update role', 'error');
     }
   };
 
@@ -165,14 +176,25 @@ export function CourseParticipants() {
                 </TableCell>
                 <TableCell className="text-text-dim">{p.email || '—'}</TableCell>
                 <TableCell>
-                  <Badge variant={p.type === 'Instructor' ? 'default' : 'secondary'}>{p.type}</Badge>
+                  {role === 'instructor' && p.type !== 'Instructor' ? (
+                    <select
+                      className="rounded-md border border-input bg-background px-2 py-1 text-xs outline-none focus:ring-1 focus:ring-accent"
+                      value={p.type}
+                      onChange={(e) => onRoleChange(p.id, e.target.value as 'Student' | 'TA')}
+                    >
+                      <option value="Student">Student</option>
+                      <option value="TA">TA</option>
+                    </select>
+                  ) : (
+                    <Badge variant={p.type === 'Instructor' ? 'default' : p.type === 'TA' ? 'outline' : 'secondary'}>{p.type}</Badge>
+                  )}
                 </TableCell>
                 <TableCell className="text-text-dim">
                   {p.joinedAt ? new Date(p.joinedAt).toLocaleDateString() : '—'}
                 </TableCell>
                 {role === 'instructor' && (
                   <TableCell>
-                    {p.type === 'Student' && (
+                    {p.type !== 'Instructor' && (
                       <Button variant="destructive" size="sm" onClick={() => onRemove(p.id)}>
                         Remove
                       </Button>

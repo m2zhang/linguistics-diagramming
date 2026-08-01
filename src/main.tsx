@@ -14,6 +14,8 @@ import App from './App';
 import { AuthGate } from './auth/AuthGate';
 import { LoginScreen } from './auth/LoginScreen';
 import { SignupScreen } from './auth/SignupScreen';
+import { ForgotPasswordScreen } from './auth/ForgotPasswordScreen';
+import { ResetPasswordScreen } from './auth/ResetPasswordScreen';
 import { Dashboard } from './pages/Dashboard';
 import { Profile } from './pages/Profile';
 import { CourseShell } from './pages/course/CourseShell';
@@ -32,6 +34,8 @@ createRoot(document.getElementById('root')!).render(
       <Routes>
         <Route path="/login" element={<LoginScreen />} />
         <Route path="/signup" element={<SignupScreen />} />
+        <Route path="/forgot-password" element={<ForgotPasswordScreen />} />
+        <Route path="/reset-password" element={<ResetPasswordScreen />} />
         <Route
           path="/dashboard"
           element={

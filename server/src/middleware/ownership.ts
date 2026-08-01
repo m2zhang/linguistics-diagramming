@@ -5,7 +5,9 @@ import { pool } from '../db/pool';
  *  call one of these helpers explicitly before touching course-scoped data. */
 export async function ownsCourse(userId: string, courseId: string): Promise<boolean> {
   const { rows } = await pool.query(
-    'SELECT 1 FROM courses WHERE id = $1 AND instructor_id = $2',
+    `SELECT 1 FROM courses WHERE id = $1 AND instructor_id = $2
+     UNION
+     SELECT 1 FROM enrollments WHERE course_id = $1 AND student_id = $2 AND role = 'ta'`,
     [courseId, userId],
   );
   return rows.length > 0;

@@ -53,7 +53,10 @@ export function LoginScreen() {
             />
           </div>
           <div className="auth-field">
-            <label htmlFor="login-password">Password</label>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+              <label htmlFor="login-password">Password</label>
+              <Link to="/forgot-password" style={{ fontSize: '0.85rem' }}>Forgot password?</Link>
+            </div>
             <input
               id="login-password"
               type="password"

@@ -28,7 +28,7 @@ const createAssignmentSchema = z
     path: ['templateContent'],
   });
 
-assignmentsRouter.post('/courses/:courseId/assignments', requireRole('instructor'), async (req, res) => {
+assignmentsRouter.post('/courses/:courseId/assignments', async (req, res) => {
   const { courseId } = req.params;
   if (!(await ownsCourse(req.session.userId!, courseId))) {
     res.status(403).json({ error: 'not your course' });
@@ -97,7 +97,7 @@ const patchAssignmentSchema = z.object({
   dueAt: z.string().datetime().nullable().optional(),
 });
 
-assignmentsRouter.patch('/assignments/:id', requireRole('instructor'), async (req, res) => {
+assignmentsRouter.patch('/assignments/:id', async (req, res) => {
   const assignmentId = req.params.id;
   if (!(await ownsAssignment(req.session.userId!, assignmentId))) {
     res.status(403).json({ error: 'not your assignment' });
@@ -129,7 +129,7 @@ assignmentsRouter.patch('/assignments/:id', requireRole('instructor'), async (re
   res.json(toAssignmentJson(rows[0]));
 });
 
-assignmentsRouter.delete('/assignments/:id', requireRole('instructor'), async (req, res) => {
+assignmentsRouter.delete('/assignments/:id', async (req, res) => {
   const assignmentId = req.params.id;
   if (!(await ownsAssignment(req.session.userId!, assignmentId))) {
     res.status(403).json({ error: 'not your assignment' });

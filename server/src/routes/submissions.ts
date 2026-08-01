@@ -110,7 +110,7 @@ submissionsRouter.post('/assignments/:id/submissions', requireRole('student'), a
 });
 
 // Instructor: every submission for an assignment, latest first.
-submissionsRouter.get('/assignments/:id/submissions', requireRole('instructor'), async (req, res) => {
+submissionsRouter.get('/assignments/:id/submissions', async (req, res) => {
   const assignmentId = req.params.id;
   if (!(await ownsAssignment(req.session.userId!, assignmentId))) {
     res.status(403).json({ error: 'not your assignment' });
@@ -165,7 +165,7 @@ const gradeSchema = z.object({
   feedback: z.string().trim().max(20000).nullable().optional(),
 });
 
-submissionsRouter.patch('/submissions/:id', requireRole('instructor'), async (req, res) => {
+submissionsRouter.patch('/submissions/:id', async (req, res) => {
   const submissionId = req.params.id;
   if (!(await ownsSubmission(req.session.userId!, submissionId))) {
     res.status(403).json({ error: 'not your submission to grade' });

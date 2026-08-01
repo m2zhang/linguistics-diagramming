@@ -23,7 +23,12 @@ export function CourseShell() {
   const { courseId } = useParams<{ courseId: string }>();
   const [course, setCourse] = useState<Course | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const role = useAuthStore((s) => s.user?.role);
+  const user = useAuthStore((s) => s.user);
+  
+  // A user gets instructor UI if they own the course OR if they are a TA
+  const role = course && user
+    ? (course.instructorId === user.id || course.myRole === 'ta' ? 'instructor' : 'student')
+    : user?.role;
 
   const refreshCourse = () => {
     if (!courseId) return;

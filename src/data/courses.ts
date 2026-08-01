@@ -4,11 +4,13 @@ export interface Course {
   id: string;
   instructorId: string;
   instructorName?: string;
+  instructorEmail?: string;
   title: string;
   description: string | null;
   joinCode: string;
   createdAt: string;
   studentCount?: number;
+  myRole?: 'student' | 'ta';
   /** Personal to the viewer — not a property of the course itself. */
   color: CourseColorKey;
   favorite: boolean;
@@ -19,6 +21,7 @@ export interface RosterEntry {
   id: string;
   displayName: string;
   email: string;
+  role: 'student' | 'ta';
   joinedAt: string;
 }
 
@@ -83,6 +86,18 @@ export function getRoster(courseId: string) {
   return request<RosterEntry[]>(`/${courseId}/roster`);
 }
 
-export function removeStudent(courseId: string, studentId: string) {
+export async function updateParticipantRole(courseId: string, studentId: string, role: 'student' | 'ta') {
+  const res = await fetch(`/api/courses/${courseId}/roster/${studentId}/role`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ role }),
+  });
+  if (!res.ok) {
+    const data = await res.json().catch(() => null);
+    throw new Error(data?.error || 'Failed to update role');
+  }
+}
+
+export async function removeStudent(courseId: string, studentId: string) {
   return request<void>(`/${courseId}/roster/${studentId}`, { method: 'DELETE' });
 }

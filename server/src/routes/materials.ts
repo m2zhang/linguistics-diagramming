@@ -10,7 +10,7 @@ import { upload, UPLOAD_DIR } from '../lib/upload';
 export const materialsRouter = Router();
 materialsRouter.use(requireAuth);
 
-materialsRouter.post('/materials', requireRole('instructor'), upload.single('file'), async (req, res) => {
+materialsRouter.post('/materials', upload.single('file'), async (req, res) => {
   const { lectureId } = req.body as { lectureId?: string };
   const file = req.file;
 
@@ -75,7 +75,7 @@ materialsRouter.get('/materials/:id/download', async (req, res) => {
   });
 });
 
-materialsRouter.delete('/materials/:id', requireRole('instructor'), async (req, res) => {
+materialsRouter.delete('/materials/:id', async (req, res) => {
   const materialId = req.params.id;
   if (!(await ownsMaterial(req.session.userId!, materialId))) {
     res.status(403).json({ error: 'not your material' });

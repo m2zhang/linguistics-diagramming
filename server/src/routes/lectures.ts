@@ -14,7 +14,7 @@ const lectureSchema = z.object({
 });
 
 // Nested under /api/courses/:courseId/lectures
-lecturesRouter.post('/courses/:courseId/lectures', requireRole('instructor'), async (req, res) => {
+lecturesRouter.post('/courses/:courseId/lectures', async (req, res) => {
   const { courseId } = req.params;
   if (!(await ownsCourse(req.session.userId!, courseId))) {
     res.status(403).json({ error: 'not your course' });
@@ -76,7 +76,7 @@ lecturesRouter.get('/lectures/:id', async (req, res) => {
   res.json({ ...toLectureJson(lecture), trees: trees.map(toTreeJson) });
 });
 
-lecturesRouter.patch('/lectures/:id', requireRole('instructor'), async (req, res) => {
+lecturesRouter.patch('/lectures/:id', async (req, res) => {
   const lectureId = req.params.id;
   if (!(await ownsLecture(req.session.userId!, lectureId))) {
     res.status(403).json({ error: 'not your lecture' });
@@ -97,7 +97,7 @@ lecturesRouter.patch('/lectures/:id', requireRole('instructor'), async (req, res
   res.json(toLectureJson(rows[0]));
 });
 
-lecturesRouter.delete('/lectures/:id', requireRole('instructor'), async (req, res) => {
+lecturesRouter.delete('/lectures/:id', async (req, res) => {
   const lectureId = req.params.id;
   if (!(await ownsLecture(req.session.userId!, lectureId))) {
     res.status(403).json({ error: 'not your lecture' });
@@ -116,7 +116,7 @@ const treeSchema = z.object({
   }),
 });
 
-lecturesRouter.post('/lectures/:id/trees', requireRole('instructor'), async (req, res) => {
+lecturesRouter.post('/lectures/:id/trees', async (req, res) => {
   const lectureId = req.params.id;
   if (!(await ownsLecture(req.session.userId!, lectureId))) {
     res.status(403).json({ error: 'not your lecture' });
@@ -137,7 +137,7 @@ lecturesRouter.post('/lectures/:id/trees', requireRole('instructor'), async (req
   res.status(201).json(toTreeJson(rows[0]));
 });
 
-lecturesRouter.delete('/lecture-trees/:id', requireRole('instructor'), async (req, res) => {
+lecturesRouter.delete('/lecture-trees/:id', async (req, res) => {
   const treeId = req.params.id;
   const { rows } = await pool.query(
     `SELECT lt.lecture_id FROM lecture_trees lt WHERE lt.id = $1`,

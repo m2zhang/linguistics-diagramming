@@ -36,7 +36,7 @@ export function DashboardSidebar({ view, onChange }: { view: DashboardView; onCh
       </div>
 
       <nav>
-        <ul className={cn('flex flex-col gap-0.5', collapsed ? 'px-2' : 'px-3')}>
+        <ul className={cn('flex flex-col gap-0.5 list-none', collapsed ? 'px-2' : 'px-3')}>
           {ITEMS.map(({ key, label, icon: Icon }) => (
             <li key={key}>
               <button
@@ -46,7 +46,7 @@ export function DashboardSidebar({ view, onChange }: { view: DashboardView; onCh
                   'flex w-full items-center gap-2.5 rounded-full py-2 text-left text-sm font-semibold tracking-tight transition-colors',
                   'font-[family-name:var(--font-display)]',
                   collapsed ? 'justify-center px-0' : 'px-3.5',
-                  view === key ? 'bg-accent text-white' : 'text-text-dim hover:bg-bg-input hover:text-text',
+                  view === key ? 'bg-accent text-white' : 'text-text-dim dark:text-gray-200 hover:bg-bg-input hover:text-text dark:hover:text-white',
                 )}
               >
                 <Icon size={16} className="shrink-0" />

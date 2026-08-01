@@ -61,7 +61,9 @@ async function ensurePreferenceFor(userId: string, courseId: string): Promise<vo
 const COURSE_SELECT = `
   SELECT c.id, c.instructor_id, c.title, c.description, c.join_code, c.created_at,
          u.display_name AS instructor_name,
+         u.email AS instructor_email,
          (SELECT count(*)::int FROM enrollments e WHERE e.course_id = c.id) AS student_count,
+         (SELECT role FROM enrollments e WHERE e.course_id = c.id AND e.student_id = $1) AS my_role,
          cp.color, cp.favorite, cp.archived
   FROM courses c
   JOIN users u ON u.id = c.instructor_id
@@ -133,7 +135,7 @@ const patchCourseSchema = z.object({
   description: z.string().trim().max(2000).nullable().optional(),
 });
 
-coursesRouter.patch('/:id', requireRole('instructor'), async (req, res) => {
+coursesRouter.patch('/:id', async (req, res) => {
   const userId = req.session.userId!;
   const courseId = req.params.id;
 
@@ -198,7 +200,7 @@ coursesRouter.put('/:id/preferences', async (req, res) => {
 });
 
 // Regenerate a course's join code (e.g. after accidentally sharing it publicly).
-coursesRouter.post('/:id/join-code/regenerate', requireRole('instructor'), async (req, res) => {
+coursesRouter.post('/:id/join-code/regenerate', async (req, res) => {
   const userId = req.session.userId!;
   const courseId = req.params.id;
 
@@ -246,7 +248,7 @@ coursesRouter.post('/join', requireRole('student'), async (req, res) => {
   res.status(201).json({ courseId: course.id });
 });
 
-coursesRouter.get('/:id/roster', requireRole('instructor'), async (req, res) => {
+coursesRouter.get('/:id/roster', async (req, res) => {
   const userId = req.session.userId!;
   const courseId = req.params.id;
 
@@ -256,7 +258,7 @@ coursesRouter.get('/:id/roster', requireRole('instructor'), async (req, res) => 
   }
 
   const { rows } = await pool.query(
-    `SELECT u.id, u.display_name, u.email, e.created_at AS joined_at
+    `SELECT u.id, u.display_name, u.email, e.created_at AS joined_at, e.role
      FROM enrollments e
      JOIN users u ON u.id = e.student_id
      WHERE e.course_id = $1
@@ -267,11 +269,40 @@ coursesRouter.get('/:id/roster', requireRole('instructor'), async (req, res) => 
     id: r.id,
     displayName: r.display_name,
     email: r.email,
+    role: r.role,
     joinedAt: r.joined_at,
   })));
 });
 
-coursesRouter.delete('/:id/roster/:studentId', requireRole('instructor'), async (req, res) => {
+const roleSchema = z.object({
+  role: z.enum(['student', 'ta']),
+});
+
+coursesRouter.patch('/:id/roster/:studentId/role', async (req, res) => {
+  const userId = req.session.userId!;
+  const courseId = req.params.id;
+  const studentId = req.params.studentId;
+
+  if (!(await ownsCourse(userId, courseId))) {
+    res.status(403).json({ error: 'not your course' });
+    return;
+  }
+
+  const parsed = roleSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.issues[0]?.message ?? 'invalid request' });
+    return;
+  }
+
+  await pool.query('UPDATE enrollments SET role = $1 WHERE course_id = $2 AND student_id = $3', [
+    parsed.data.role,
+    courseId,
+    studentId,
+  ]);
+  res.sendStatus(204);
+});
+
+coursesRouter.delete('/:id/roster/:studentId', async (req, res) => {
   const userId = req.session.userId!;
   const courseId = req.params.id;
 
@@ -295,7 +326,9 @@ function toCourseJson(row: {
   join_code: string;
   created_at: Date;
   instructor_name?: string;
+  instructor_email?: string;
   student_count?: number;
+  my_role?: 'student' | 'ta' | null;
   color: string | null;
   favorite: boolean | null;
   archived: boolean | null;
@@ -304,11 +337,13 @@ function toCourseJson(row: {
     id: row.id,
     instructorId: row.instructor_id,
     instructorName: row.instructor_name,
+    instructorEmail: row.instructor_email,
     title: row.title,
     description: row.description,
     joinCode: row.join_code,
     createdAt: row.created_at,
     studentCount: row.student_count,
+    myRole: row.my_role ?? undefined,
     color: row.color ?? 'blue',
     favorite: row.favorite ?? false,
     archived: row.archived ?? false,
