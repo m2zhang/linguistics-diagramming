@@ -24,7 +24,37 @@ interface ViewState {
   ty: number;
 }
 
-type Tool = 'select' | 'draw' | 'text' | 'erase' | 'box' | 'arrow';
+type Tool = 'select' | 'draw' | 'highlight'| 'text' | 'erase' | 'box' | 'arrow';
+
+function HighlighterIcon() {
+  return (
+    <svg
+      width="18"
+      height="18"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <g transform="rotate(45 12 12)">
+        {/* Rounded marker body */}
+        <rect x="8" y="2" width="8" height="13" rx="3" />
+
+        {/* Tapered section between the body and tip */}
+        <path d="M8 13h8l-2 5h-4l-2-5Z" />
+
+        {/* Chisel tip */}
+        <path d="M10 18h4v4h-4Z" />
+
+        {/* Band across the marker */}
+        <path d="M8 13h8" />
+      </g>
+    </svg>
+  );
+}
 
 function BoxIcon() {
   return (
@@ -208,9 +238,10 @@ export function TreeCanvas() {
   };
 
   const onPointerDown = (e: React.PointerEvent) => {
-    if (tool === 'draw') {
-      drawing.current = true;
-      liveStrokeRef.current = [toWorld(e)];
+    //Highlighter is allowed to start drawing
+    if (tool === 'draw' || tool === 'highlight') {
+      drawing.current = true; //records drawing has started
+      liveStrokeRef.current = [toWorld(e)]; //stroke using the first coordinate
       setLiveStroke(liveStrokeRef.current);
       (e.target as Element).setPointerCapture?.(e.pointerId);
       return;
@@ -280,7 +311,8 @@ export function TreeCanvas() {
       connectorDragStart.current.startY = p.y;
       return;
     }
-    if (tool === 'draw' && drawing.current) {
+    //Adding that highlighter is allowed to continue drawing while pressed
+    if ((tool === 'draw' || tool === 'highlight') && drawing.current) {
       const p = toWorld(e);
       liveStrokeRef.current = [...(liveStrokeRef.current ?? []), p];
       setLiveStroke(liveStrokeRef.current);
@@ -344,7 +376,8 @@ export function TreeCanvas() {
       const stroke = liveStrokeRef.current;
       liveStrokeRef.current = null;
       if (stroke && stroke.length > 1) {
-        addStroke({ points: stroke, color: strokeColor, width: 2 });
+        //Default values of the stroke. This is a ternary expression that just startes that if tool is a highlight, set it to 14. Otherwise, make it 2.
+        addStroke({ points: stroke, color: strokeColor, width: tool === 'highlight'? 14: 2, opacity: tool === 'highlight'? 0.3: 1 });
       }
       setLiveStroke(null);
     }
@@ -532,10 +565,13 @@ export function TreeCanvas() {
   });
 
   const eraserCursor = `url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9IiNmODcxNzEiIHN0cm9rZS13aWR0aD0iMiIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIj48cGF0aCBkPSJNMjAgMjBIN0wzIDE2QzIgMTUgMiAxMyAzIDEyTDEyIDNDMTMgMiAxNSAyIDE2IDNMMjEgOEMyMiA5IDIyIDExIDIxIDEyTDE2IDE3TDIwIDIwWiIvPjxsaW5lIHgxPSIxMiIgeTE9IjExIiB4Mj0iMTYiIHkyPSIxNSIvPjwvc3ZnPg==") 4 16, default`;
+  const highlighterCursor =
+  'url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2224%22 height=%2224%22 viewBox=%220 0 24 24%22%3E%3Cpath d=%22M9 2l12 5-6 14-12-5z%22 fill=%22none%22 stroke=%22%23000%22 stroke-width=%221.5%22 stroke-linejoin=%22round%22/%3E%3Cpath d=%22M3 16l12 5%22 stroke=%22%23000%22 stroke-width=%222%22 stroke-linecap=%22round%22/%3E%3C/svg%3E") 9 19, crosshair';
 
   const cursorFor: Record<Tool, string> = {
     select: panning || noteDragStart.current || strokeDragStart.current || boxDragStart.current || connectorDragStart.current ? 'grabbing' : 'grab',
     draw: 'crosshair',
+    highlight: highlighterCursor, //when the tool is highlight, the cursor is the customized highlighterCursor
     text: 'text',
     erase: eraserCursor,
     box: 'crosshair',
@@ -708,6 +744,7 @@ export function TreeCanvas() {
                   points={s.points.map((p) => `${p.x},${p.y}`).join(' ')}
                   stroke={s.color}
                   strokeWidth={s.width}
+                  strokeOpacity={s.opacity ?? 1} // Use s.opacity if it exists. Otherwise, use 1 which represents solid color
                   fill="none"
                   pointerEvents="none"
                 />
@@ -719,7 +756,10 @@ export function TreeCanvas() {
               className="stroke"
               points={liveStroke.map((p) => `${p.x},${p.y}`).join(' ')}
               stroke={strokeColor}
-              strokeWidth={2}
+              strokeWidth={tool === 'highlight' ? 14: 2}
+              strokeOpacity={tool === 'highlight' ? 0.3:1}
+              strokeLinecap="round" //SVG attributes of the stroke being round
+              strokeLinejoin="round"
             />
           )}
 
@@ -980,12 +1020,13 @@ export function TreeCanvas() {
       <div className="canvas-toolbar tools">
         {toolButton('select', <CursorIcon />, 'Select / pan (drag canvas, double-click to rename)')}
         {toolButton('draw', <PenIcon />, 'Draw freehand')}
+        {toolButton('highlight', <HighlighterIcon/>,'Highlight')}
         {toolButton('text', <TextIcon />, 'Add text note (click on canvas)')}
         {toolButton('arrow', <ArrowIcon />, 'Draw connector arrow between elements')}
         {toolButton('box', <BoxIcon />, 'Draw box around elements')}
         {toolButton('erase', <EraserIcon />, 'Eraser (click a drawing, note, box, or arrow)')}
-        
-        {(tool === 'draw' || tool === 'text' || tool === 'box' || tool === 'arrow') && (
+
+        {(tool === 'draw' || tool === 'highlight'|| tool === 'text' || tool === 'box' || tool === 'arrow' ) && (
           <>
             <span className="toolbar-divider" />
             <div className="color-picker">
@@ -1109,24 +1150,24 @@ export function TreeCanvas() {
               Connect <strong>{label1}</strong> &rarr; <strong>{label2}</strong>
             </div>
             <div className="selection-helper-actions">
-              <button 
-                className="btn ghost" 
+              <button
+                className="btn ghost"
                 onClick={swapSelectedDirection}
                 style={{ padding: '4px 8px', fontSize: '12px' }}
                 title="Swap arrow direction"
               >
                 &larr;&rarr; Swap
               </button>
-              <button 
-                className="btn primary" 
+              <button
+                className="btn primary"
                 onClick={connectSelected}
                 style={{ padding: '4px 10px', fontSize: '12px' }}
                 title="Connect selected elements with an arrow (C)"
               >
                 <ArrowIcon /> Connect
               </button>
-              <button 
-                className="btn ghost danger" 
+              <button
+                className="btn ghost danger"
                 onClick={() => select(null)}
                 style={{ padding: '4px 8px', fontSize: '12px' }}
                 title="Cancel selection"
