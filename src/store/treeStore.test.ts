@@ -107,4 +107,28 @@ describe('treeStore undo/redo', () => {
     useTreeStore.getState().undo();
     expect(useTreeStore.getState().tree).toBe(before);
   });
+  //Unit Test for the trashcan for annotations
+  it('clears annotations without changing the tree', () => {
+    const treeBeforeClear = useTreeStore.getState().tree;
+
+    useTreeStore.getState().addStroke({
+      points: [
+        { x: 0, y: 0 },
+        { x: 10, y: 10 },
+      ],
+      color: '#f00',
+      width: 2,
+    });
+
+    useTreeStore.getState().addNote({
+      x: 5,
+      y: 5,
+      text: 'annotation',
+    });
+
+    useTreeStore.getState().clearAnnotations();
+
+    expect(useTreeStore.getState().annotations).toEqual(EMPTY_ANNOTATIONS);
+    expect(useTreeStore.getState().tree).toBe(treeBeforeClear);
+  });
 });
