@@ -56,6 +56,28 @@ function HighlighterIcon() {
   );
 }
 
+function ClearAnnotationsIcon() {
+  return (
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M3 6h18" />
+      <path d="M8 6V4h8v2" />
+      <path d="m19 6-1 14H6L5 6" />
+      <path d="M10 11v5" />
+      <path d="M14 11v5" />
+    </svg>
+  );
+}
+
 function BoxIcon() {
   return (
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -105,6 +127,7 @@ export function TreeCanvas() {
   const moveConnector = useTreeStore((s) => s.moveConnector);
   const updateNote = useTreeStore((s) => s.updateNote);
   const removeAnnotation = useTreeStore((s) => s.removeAnnotation);
+  const clearAnnotations = useTreeStore((s) => s.clearAnnotations);
   const applyDrawingResult = useTreeStore((s) => s.applyDrawingResult);
   const [recognizing, setRecognizing] = useState(false);
   const undo = useTreeStore((s) => s.undo);
@@ -143,6 +166,12 @@ export function TreeCanvas() {
   const liveConnectorRef = useRef<{ startX: number; startY: number; endX: number; endY: number } | null>(null);
 
   const layout = useMemo(() => (tree ? layoutTree(tree) : null), [tree]);
+  //There are annotations if there is at least one stroke, note, box or connector
+  const hasAnnotations =
+  annotations.strokes.length > 0 ||
+  annotations.notes.length > 0 ||
+  (annotations.boxes?.length ?? 0) > 0 ||
+  (annotations.connectors?.length ?? 0) > 0;
 
   // Expose svg element to the export module.
   useEffect(() => {
@@ -1056,7 +1085,26 @@ export function TreeCanvas() {
         <button className="btn icon ghost" title="Redo (Ctrl+Y)" disabled={!canRedo} onClick={redo}>
           <RedoIcon />
         </button>
-
+      {hasAnnotations && (
+        <>
+        <span className="toolbar-divider" />
+        <button
+          className="btn icon ghost"
+          title="Clear annotations without changing the tree"
+          aria-label="Clear annotations"
+          onClick={() => {
+            const confirmed = window.confirm(
+            'Clear all annotations? Your syntax tree will not be changed.',
+          );
+          if (confirmed) {
+            clearAnnotations();
+          }
+        }}
+        >
+        <ClearAnnotationsIcon />
+        </button>
+        </>
+      )}
         {(annotations.notes.length > 0 || annotations.strokes.length > 0) && (
           <>
             <span className="toolbar-divider" />
