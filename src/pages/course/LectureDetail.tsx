@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react';
-import { Link, useNavigate, useOutletContext, useParams } from 'react-router-dom';
-import { ExternalLink, GitBranch, Plus, Trash2 } from 'lucide-react';
+import { useNavigate, useOutletContext, useParams } from 'react-router-dom';
+import { ExternalLink, GitBranch, Trash2 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
 import { ConfirmDialog } from '../../components/ui/confirm-dialog';
 import { BackButton } from '../../components/ui/back-button';
 import { MaterialUpload } from '../../components/lecture/MaterialUpload';
+import { AddTreeDialog } from '../../components/lecture/AddTreeDialog';
 import { deleteLecture, deleteLectureTree, getLecture, type LectureDetail as LectureDetailData } from '../../data/lectures';
 import { useTreeStore } from '../../store/treeStore';
 import { EMPTY_ANNOTATIONS, cloneWithNewIds } from '../../model/types';
@@ -103,13 +104,7 @@ export function LectureDetail() {
       <Card className="mb-4">
         <CardHeader className="flex-row items-center justify-between space-y-0">
           <CardTitle>Lesson trees</CardTitle>
-          {role === 'instructor' && (
-            <Link to={`/editor?saveToLecture=${lecture.id}&courseId=${course.id}`}>
-              <Button size="sm">
-                <Plus size={14} /> Add tree
-              </Button>
-            </Link>
-          )}
+          {role === 'instructor' && <AddTreeDialog lectureId={lecture.id} courseId={course.id} />}
         </CardHeader>
         <CardContent>
           {lecture.trees.length === 0 ? (
