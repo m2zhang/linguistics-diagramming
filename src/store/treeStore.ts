@@ -89,7 +89,8 @@ interface TreeState {
   setNodeStyle: (ids: string[], patch: NodeStyle, coalesceKey?: string) => void;
   setNodeFeatures: (id: string, features: string[]) => void;
   attachPreset: (targetId: string, preset: TreeNode) => void;
-  clear: () => void;
+  clear: () => void; //for clearing both annotations and tree
+  clearAnnotations: () => void; //creating a separate one for just clearing annotations only
 
   addStroke: (stroke: Omit<Stroke, 'id'>) => void;
   moveStroke: (id: string, dx: number, dy: number) => void;
@@ -341,6 +342,14 @@ export const useTreeStore = create<TreeState>((set, get) => {
         selectedIds: [],
         parseErrors: [],
         treeRevision: s.treeRevision + 1,
+      })),
+    //A function of just clearing the annotations by removing the parts about the tree from clear()
+    clearAnnotations: () =>
+      set((s) => ({
+        ...snapshot(s),
+        annotations: EMPTY_ANNOTATIONS,
+        selectedId: null,
+        selectedIds: [],
       })),
 
     addStroke: (stroke) =>

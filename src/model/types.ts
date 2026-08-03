@@ -122,6 +122,7 @@ export interface Stroke {
   points: { x: number; y: number }[];
   color: string;
   width: number;
+  opacity?:number; /** Optional transparency for highlighter strokes; pens default to fully opaque. */
 }
 
 /** Floating text note placed on the canvas, in world coordinates. */
