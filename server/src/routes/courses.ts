@@ -94,7 +94,7 @@ coursesRouter.post('/', requireRole('instructor'), async (req, res) => {
   await ensurePreferenceFor(userId, rows[0].id);
 
   const { rows: full } = await pool.query(`${COURSE_SELECT} WHERE c.id = $2`, [userId, rows[0].id]);
-  res.status(201).json(toCourseJson(full[0]));
+  res.status(201).json(toCourseJson(full[0], userId));
 });
 
 // Every course the caller teaches (instructor) or is enrolled in (student).
@@ -108,7 +108,7 @@ coursesRouter.get('/', async (req, res) => {
      ORDER BY c.created_at DESC`,
     [userId],
   );
-  res.json(rows.map(toCourseJson));
+  res.json(rows.map((row) => toCourseJson(row, userId)));
 });
 
 coursesRouter.get('/:id', async (req, res) => {
@@ -127,7 +127,7 @@ coursesRouter.get('/:id', async (req, res) => {
     res.status(404).json({ error: 'course not found' });
     return;
   }
-  res.json(toCourseJson(course));
+  res.json(toCourseJson(course, userId));
 });
 
 const patchCourseSchema = z.object({
@@ -159,7 +159,7 @@ coursesRouter.patch('/:id', async (req, res) => {
     [courseId, title ?? null, description !== undefined, description ?? null],
   );
   const { rows } = await pool.query(`${COURSE_SELECT} WHERE c.id = $2`, [userId, courseId]);
-  res.json(toCourseJson(rows[0]));
+  res.json(toCourseJson(rows[0], userId));
 });
 
 const preferencesSchema = z.object({
@@ -196,7 +196,7 @@ coursesRouter.put('/:id/preferences', async (req, res) => {
   );
 
   const { rows } = await pool.query(`${COURSE_SELECT} WHERE c.id = $2`, [userId, courseId]);
-  res.json(toCourseJson(rows[0]));
+  res.json(toCourseJson(rows[0], userId));
 });
 
 // Regenerate a course's join code (e.g. after accidentally sharing it publicly).
@@ -318,21 +318,27 @@ coursesRouter.delete('/:id/roster/:studentId', async (req, res) => {
   res.sendStatus(204);
 });
 
-function toCourseJson(row: {
-  id: string;
-  instructor_id: string;
-  title: string;
-  description: string | null;
-  join_code: string;
-  created_at: Date;
-  instructor_name?: string;
-  instructor_email?: string;
-  student_count?: number;
-  my_role?: 'student' | 'ta' | null;
-  color: string | null;
-  favorite: boolean | null;
-  archived: boolean | null;
-}) {
+function toCourseJson(
+  row: {
+    id: string;
+    instructor_id: string;
+    title: string;
+    description: string | null;
+    join_code: string;
+    created_at: Date;
+    instructor_name?: string;
+    instructor_email?: string;
+    student_count?: number;
+    my_role?: 'student' | 'ta' | null;
+    color: string | null;
+    favorite: boolean | null;
+    archived: boolean | null;
+  },
+  viewerId: string,
+) {
+  // Only course staff get the join code — it is the credential for enrolling,
+  // so handing it to every enrolled student would let them invite outsiders.
+  const isStaff = row.instructor_id === viewerId || row.my_role === 'ta';
   return {
     id: row.id,
     instructorId: row.instructor_id,
@@ -340,7 +346,7 @@ function toCourseJson(row: {
     instructorEmail: row.instructor_email,
     title: row.title,
     description: row.description,
-    joinCode: row.join_code,
+    joinCode: isStaff ? row.join_code : undefined,
     createdAt: row.created_at,
     studentCount: row.student_count,
     myRole: row.my_role ?? undefined,

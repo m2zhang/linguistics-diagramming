@@ -13,7 +13,13 @@ export function LoginScreen() {
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
-  const from = (location.state as { from?: { pathname: string } } | null)?.from?.pathname ?? '/dashboard';
+  // Keep the query string: editor deep links carry the lecture/assignment
+  // context there (?saveToLecture=…&courseId=…), and dropping it silently
+  // sends the user to a blank canvas after signing in.
+  const attempted = (location.state as { from?: { pathname: string; search?: string; hash?: string } } | null)?.from;
+  const from = attempted
+    ? `${attempted.pathname}${attempted.search ?? ''}${attempted.hash ?? ''}`
+    : '/dashboard';
 
   const onSubmit = async (e: FormEvent) => {
     e.preventDefault();

@@ -3,7 +3,6 @@ import fs from 'fs';
 import path from 'path';
 import { pool } from '../db/pool';
 import { requireAuth } from '../middleware/requireAuth';
-import { requireRole } from '../middleware/requireRole';
 import { canReadLecture, canReadMaterial, ownsLecture, ownsMaterial } from '../middleware/ownership';
 import { upload, UPLOAD_DIR } from '../lib/upload';
 

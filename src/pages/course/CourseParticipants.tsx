@@ -84,6 +84,7 @@ export function CourseParticipants() {
   };
 
   const onCopyCode = async () => {
+    if (!course.joinCode) return;
     const ok = await copyText(course.joinCode);
     if (ok) {
       setCopied(true);

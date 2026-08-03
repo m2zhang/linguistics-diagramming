@@ -7,7 +7,8 @@ export interface Course {
   instructorEmail?: string;
   title: string;
   description: string | null;
-  joinCode: string;
+  /** Only sent to course staff (instructor/TA) — it is the enrolment credential. */
+  joinCode?: string;
   createdAt: string;
   studentCount?: number;
   myRole?: 'student' | 'ta';
@@ -86,16 +87,11 @@ export function getRoster(courseId: string) {
   return request<RosterEntry[]>(`/${courseId}/roster`);
 }
 
-export async function updateParticipantRole(courseId: string, studentId: string, role: 'student' | 'ta') {
-  const res = await fetch(`/api/courses/${courseId}/roster/${studentId}/role`, {
+export function updateParticipantRole(courseId: string, studentId: string, role: 'student' | 'ta') {
+  return request<void>(`/${courseId}/roster/${studentId}/role`, {
     method: 'PATCH',
-    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ role }),
   });
-  if (!res.ok) {
-    const data = await res.json().catch(() => null);
-    throw new Error(data?.error || 'Failed to update role');
-  }
 }
 
 export async function removeStudent(courseId: string, studentId: string) {

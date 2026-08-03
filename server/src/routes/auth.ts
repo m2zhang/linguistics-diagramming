@@ -122,9 +122,13 @@ authRouter.post('/forgot-password', async (req, res) => {
     [token, tokenExpires, email]
   );
 
-  // In a real app, you would send an email here.
-  // We're returning the token for local development.
-  res.json({ message: 'If that email exists, a reset link has been generated.', devToken: rowCount && rowCount > 0 ? token : null });
+  // In a real app, you would send an email here. Outside development the token
+  // must never leave the server — it is enough on its own to take over the
+  // account via /reset-password, and a non-null value also reveals that the
+  // email is registered.
+  const devToken =
+    process.env.NODE_ENV !== 'production' && rowCount && rowCount > 0 ? token : null;
+  res.json({ message: 'If that email exists, a reset link has been generated.', devToken });
 });
 
 const resetPasswordSchema = z.object({
@@ -211,6 +215,12 @@ authRouter.patch('/me', requireAuth, async (req, res) => {
     [req.session.userId, parsed.data.displayName],
   );
   const user = rows[0];
+  if (!user) {
+    // Session outlived the user row (e.g. deleted account) — treat as logged out.
+    req.session.destroy(() => {});
+    res.status(401).json({ error: 'not authenticated' });
+    return;
+  }
   res.json({
     id: user.id,
     email: user.email,

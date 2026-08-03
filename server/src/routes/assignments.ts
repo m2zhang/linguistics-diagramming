@@ -2,7 +2,6 @@ import { Router } from 'express';
 import { z } from 'zod';
 import { pool } from '../db/pool';
 import { requireAuth } from '../middleware/requireAuth';
-import { requireRole } from '../middleware/requireRole';
 import { canReadCourse, canReadAssignment, ownsAssignment, ownsCourse } from '../middleware/ownership';
 
 export const assignmentsRouter = Router();
