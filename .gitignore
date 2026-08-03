@@ -117,6 +117,7 @@ Thumbs.db
 # Vite / Build outputs
 dist/
 dist-ssr/
+.vite/
 *.local
 
 # Environment variables

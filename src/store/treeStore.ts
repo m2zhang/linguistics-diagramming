@@ -4,11 +4,15 @@ import { serializeBracketPretty } from '../model/bracketSerializer';
 import {
   Annotations,
   Box,
+  carryOverDecorations,
   cloneWithNewIds,
   Connector,
   EMPTY_ANNOTATIONS,
   makeId,
   makeNode,
+  normalizeFeatures,
+  normalizeStyle,
+  NodeStyle,
   Stroke,
   TextNote,
   TreeNode,
@@ -69,6 +73,11 @@ interface TreeState {
   treeRevision: number;
   past: Snapshot[];
   future: Snapshot[];
+  /**
+   * Identifies the last mutation so a run of like changes (e.g. dragging the
+   * font-size slider) collapses into a single undo step. `null` = don't merge.
+   */
+  lastActionKey: string | null;
 
   setTreeFromBracket: (text: string, forceRevisionBump?: boolean) => void;
   replaceTree: (tree: TreeNode | null) => void;
@@ -77,8 +86,11 @@ interface TreeState {
   deleteNode: (id: string) => void;
   deleteMultiple: (ids: string[]) => void;
   addChild: (parentId: string, label?: string) => void;
+  setNodeStyle: (ids: string[], patch: NodeStyle, coalesceKey?: string) => void;
+  setNodeFeatures: (id: string, features: string[]) => void;
   attachPreset: (targetId: string, preset: TreeNode) => void;
-  clear: () => void;
+  clear: () => void; //for clearing both annotations and tree
+  clearAnnotations: () => void; //creating a separate one for just clearing annotations only
 
   addStroke: (stroke: Omit<Stroke, 'id'>) => void;
   moveStroke: (id: string, dx: number, dy: number) => void;
@@ -100,12 +112,30 @@ interface TreeState {
   bracketText: () => string;
 }
 
+type SnapshotSource = {
+  tree: TreeNode | null;
+  annotations: Annotations;
+  past: Snapshot[];
+  lastActionKey: string | null;
+};
+
 export const useTreeStore = create<TreeState>((set, get) => {
-  /** Push the current state onto the undo stack and clear redo. */
-  const snapshot = (s: { tree: TreeNode | null; annotations: Annotations; past: Snapshot[] }) => ({
-    past: [...s.past.slice(-(HISTORY_LIMIT - 1)), { tree: s.tree, annotations: s.annotations }],
-    future: [] as Snapshot[],
-  });
+  /**
+   * Push the current state onto the undo stack and clear redo.
+   *
+   * Passing `key` merges this change into the previous history entry when the
+   * previous change carried the same key, so a slider drag is one undo step.
+   */
+  const snapshot = (s: SnapshotSource, key: string | null = null) => {
+    if (key !== null && key === s.lastActionKey) {
+      return { past: s.past, future: [] as Snapshot[], lastActionKey: key };
+    }
+    return {
+      past: [...s.past.slice(-(HISTORY_LIMIT - 1)), { tree: s.tree, annotations: s.annotations }],
+      future: [] as Snapshot[],
+      lastActionKey: key,
+    };
+  };
 
   return {
     tree: null,
@@ -116,13 +146,15 @@ export const useTreeStore = create<TreeState>((set, get) => {
     treeRevision: 0,
     past: [],
     future: [],
+    lastActionKey: null,
 
     setTreeFromBracket: (text, forceRevisionBump = false) => {
       const { tree, errors } = parseBracket(text);
       const isEmpty = text.trim() === '';
       set((s) => ({
         ...snapshot(s),
-        tree: isEmpty ? null : (tree ?? s.tree),
+        // Re-parsing rebuilds every node, so re-apply the inspector's styling.
+        tree: isEmpty ? null : tree ? carryOverDecorations(s.tree, tree) : s.tree,
         parseErrors: errors,
         treeRevision: forceRevisionBump ? s.treeRevision + 1 : s.treeRevision,
       }));
@@ -236,17 +268,51 @@ export const useTreeStore = create<TreeState>((set, get) => {
         };
       }),
 
-    addChild: (parentId, label = 'X') =>
-      set((s) => ({
-        ...snapshot(s),
-        tree: s.tree
-          ? updateNode(s.tree, parentId, (n) => ({
-              ...n,
-              children: [...n.children, makeNode(label)],
-            }))
-          : s.tree,
-        treeRevision: s.treeRevision + 1,
-      })),
+    addChild: (parentId, label = 'X') => {
+      // Built outside the updater so the id is available for the selection below.
+      const child = makeNode(label);
+      set((s) => {
+        if (!s.tree) return s;
+        return {
+          ...snapshot(s),
+          tree: updateNode(s.tree, parentId, (n) => ({
+            ...n,
+            children: [...n.children, child],
+          })),
+          // Select the new child so it can be renamed straight away.
+          selectedId: child.id,
+          selectedIds: [child.id],
+          treeRevision: s.treeRevision + 1,
+        };
+      });
+    },
+
+    setNodeStyle: (ids, patch, coalesceKey) =>
+      set((s) => {
+        if (!s.tree || ids.length === 0) return s;
+        let tree = s.tree;
+        for (const id of ids) {
+          tree = updateNode(tree, id, (n) => ({
+            ...n,
+            style: normalizeStyle({ ...n.style, ...patch }),
+          }));
+        }
+        if (tree === s.tree) return s;
+        // No treeRevision bump: styling changes neither the structure nor the
+        // bracket text, and bumping would re-fit the view on every slider tick.
+        return { ...snapshot(s, coalesceKey ?? null), tree };
+      }),
+
+    setNodeFeatures: (id, features) =>
+      set((s) => {
+        if (!s.tree) return s;
+        const tree = updateNode(s.tree, id, (n) => ({
+          ...n,
+          features: normalizeFeatures(features),
+        }));
+        if (tree === s.tree) return s;
+        return { ...snapshot(s), tree };
+      }),
 
     attachPreset: (targetId, preset) =>
       set((s) => {
@@ -276,6 +342,14 @@ export const useTreeStore = create<TreeState>((set, get) => {
         selectedIds: [],
         parseErrors: [],
         treeRevision: s.treeRevision + 1,
+      })),
+    //A function of just clearing the annotations by removing the parts about the tree from clear()
+    clearAnnotations: () =>
+      set((s) => ({
+        ...snapshot(s),
+        annotations: EMPTY_ANNOTATIONS,
+        selectedId: null,
+        selectedIds: [],
       })),
 
     addStroke: (stroke) =>
@@ -408,6 +482,7 @@ export const useTreeStore = create<TreeState>((set, get) => {
         return {
           past: s.past.slice(0, -1),
           future: [...s.future, { tree: s.tree, annotations: s.annotations }],
+          lastActionKey: null,
           tree: prev.tree,
           annotations: prev.annotations,
           selectedId: null,
@@ -425,6 +500,7 @@ export const useTreeStore = create<TreeState>((set, get) => {
         return {
           future: s.future.slice(0, -1),
           past: [...s.past, { tree: s.tree, annotations: s.annotations }],
+          lastActionKey: null,
           tree: next.tree,
           annotations: next.annotations,
           selectedId: null,

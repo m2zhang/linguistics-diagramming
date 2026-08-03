@@ -1,10 +1,18 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { layoutTree, PositionedNode } from '../model/layout';
+import {
+  edgeEndY,
+  edgeStartY,
+  FEATURE_FONT_SIZE,
+  featureLineY,
+  layoutTree,
+  nodeBox,
+  PositionedNode,
+} from '../model/layout';
 import { useTreeStore } from '../store/treeStore';
 import { useUiStore } from '../store/uiStore';
 import { drawingToTree, pointToSegment } from '../model/drawingToTree';
 import { sketchToTree } from '../vision/sketchToTree';
-import { makeId } from '../model/types';
+import { effectiveStyle, FONT_STACKS, makeId } from '../model/types';
 import {
   CursorIcon,
   EraserIcon,
@@ -24,7 +32,59 @@ interface ViewState {
   ty: number;
 }
 
-type Tool = 'select' | 'draw' | 'text' | 'erase' | 'box' | 'arrow';
+type Tool = 'select' | 'draw' | 'highlight'| 'text' | 'erase' | 'box' | 'arrow';
+
+function HighlighterIcon() {
+  return (
+    <svg
+      width="18"
+      height="18"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <g transform="rotate(45 12 12)">
+        {/* Rounded marker body */}
+        <rect x="8" y="2" width="8" height="13" rx="3" />
+
+        {/* Tapered section between the body and tip */}
+        <path d="M8 13h8l-2 5h-4l-2-5Z" />
+
+        {/* Chisel tip */}
+        <path d="M10 18h4v4h-4Z" />
+
+        {/* Band across the marker */}
+        <path d="M8 13h8" />
+      </g>
+    </svg>
+  );
+}
+
+function ClearAnnotationsIcon() {
+  return (
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M3 6h18" />
+      <path d="M8 6V4h8v2" />
+      <path d="m19 6-1 14H6L5 6" />
+      <path d="M10 11v5" />
+      <path d="M14 11v5" />
+    </svg>
+  );
+}
 
 function BoxIcon() {
   return (
@@ -43,8 +103,17 @@ function ArrowIcon() {
   );
 }
 
-const NODE_W = 54;
-const NODE_H = 26;
+/** Inline SVG presentation for a node's label, honouring its inspector style. */
+function labelStyle(n: PositionedNode): React.CSSProperties {
+  const s = effectiveStyle(n.style, n.isLeaf);
+  return {
+    fontFamily: FONT_STACKS[s.font],
+    fontSize: `${s.fontSize}px`,
+    fontWeight: s.fontWeight,
+    fontStyle: s.italic ? 'italic' : 'normal',
+    ...(s.color ? { fill: s.color } : null),
+  };
+}
 
 export interface CanvasHandle {
   svg: SVGSVGElement | null;
@@ -75,6 +144,7 @@ export function TreeCanvas() {
   const moveConnector = useTreeStore((s) => s.moveConnector);
   const updateNote = useTreeStore((s) => s.updateNote);
   const removeAnnotation = useTreeStore((s) => s.removeAnnotation);
+  const clearAnnotations = useTreeStore((s) => s.clearAnnotations);
   const applyDrawingResult = useTreeStore((s) => s.applyDrawingResult);
   const [recognizing, setRecognizing] = useState(false);
   const undo = useTreeStore((s) => s.undo);
@@ -125,6 +195,17 @@ export function TreeCanvas() {
   const liveConnectorRef = useRef<{ startX: number; startY: number; endX: number; endY: number } | null>(null);
 
   const layout = useMemo(() => (tree ? layoutTree(tree) : null), [tree]);
+  // Edges need their endpoints' styles (branch thickness, label size, features).
+  const nodeById = useMemo(
+    () => new Map((layout?.nodes ?? []).map((n) => [n.id, n])),
+    [layout],
+  );
+  //There are annotations if there is at least one stroke, note, box or connector
+  const hasAnnotations =
+  annotations.strokes.length > 0 ||
+  annotations.notes.length > 0 ||
+  (annotations.boxes?.length ?? 0) > 0 ||
+  (annotations.connectors?.length ?? 0) > 0;
 
   // Expose svg element to the export module.
   useEffect(() => {
@@ -173,8 +254,9 @@ export function TreeCanvas() {
     };
 
     for (const n of layout?.nodes ?? []) {
-      const dx = Math.max(Math.abs(p.x - n.x) - NODE_W / 2, 0);
-      const dy = Math.max(Math.abs(p.y - n.y) - NODE_H / 2, 0);
+      const b = nodeBox(n);
+      const dx = Math.max(b.x - p.x, p.x - (b.x + b.w), 0);
+      const dy = Math.max(b.y - p.y, p.y - (b.y + b.h), 0);
       consider(n.id, Math.hypot(dx, dy), true);
     }
     for (const n of annotations.notes) {
@@ -220,9 +302,10 @@ export function TreeCanvas() {
   };
 
   const onPointerDown = (e: React.PointerEvent) => {
-    if (tool === 'draw') {
-      drawing.current = true;
-      liveStrokeRef.current = [toWorld(e)];
+    //Highlighter is allowed to start drawing
+    if (tool === 'draw' || tool === 'highlight') {
+      drawing.current = true; //records drawing has started
+      liveStrokeRef.current = [toWorld(e)]; //stroke using the first coordinate
       setLiveStroke(liveStrokeRef.current);
       (e.target as Element).setPointerCapture?.(e.pointerId);
       return;
@@ -292,7 +375,8 @@ export function TreeCanvas() {
       connectorDragStart.current.startY = p.y;
       return;
     }
-    if (tool === 'draw' && drawing.current) {
+    //Adding that highlighter is allowed to continue drawing while pressed
+    if ((tool === 'draw' || tool === 'highlight') && drawing.current) {
       const p = toWorld(e);
       liveStrokeRef.current = [...(liveStrokeRef.current ?? []), p];
       setLiveStroke(liveStrokeRef.current);
@@ -356,7 +440,8 @@ export function TreeCanvas() {
       const stroke = liveStrokeRef.current;
       liveStrokeRef.current = null;
       if (stroke && stroke.length > 1) {
-        addStroke({ points: stroke, color: strokeColor, width: 2 });
+        //Default values of the stroke. This is a ternary expression that just startes that if tool is a highlight, set it to 14. Otherwise, make it 2.
+        addStroke({ points: stroke, color: strokeColor, width: tool === 'highlight'? 14: 2, opacity: tool === 'highlight'? 0.3: 1 });
       }
       setLiveStroke(null);
     }
@@ -544,10 +629,13 @@ export function TreeCanvas() {
   });
 
   const eraserCursor = `url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9IiNmODcxNzEiIHN0cm9rZS13aWR0aD0iMiIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIj48cGF0aCBkPSJNMjAgMjBIN0wzIDE2QzIgMTUgMiAxMyAzIDEyTDEyIDNDMTMgMiAxNSAyIDE2IDNMMjEgOEMyMiA5IDIyIDExIDIxIDEyTDE2IDE3TDIwIDIwWiIvPjxsaW5lIHgxPSIxMiIgeTE9IjExIiB4Mj0iMTYiIHkyPSIxNSIvPjwvc3ZnPg==") 4 16, default`;
+  const highlighterCursor =
+  'url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2224%22 height=%2224%22 viewBox=%220 0 24 24%22%3E%3Cpath d=%22M9 2l12 5-6 14-12-5z%22 fill=%22none%22 stroke=%22%23000%22 stroke-width=%221.5%22 stroke-linejoin=%22round%22/%3E%3Cpath d=%22M3 16l12 5%22 stroke=%22%23000%22 stroke-width=%222%22 stroke-linecap=%22round%22/%3E%3C/svg%3E") 9 19, crosshair';
 
   const cursorFor: Record<Tool, string> = {
     select: panning || noteDragStart.current || strokeDragStart.current || boxDragStart.current || connectorDragStart.current ? 'grabbing' : 'grab',
     draw: 'crosshair',
+    highlight: highlighterCursor, //when the tool is highlight, the cursor is the customized highlighterCursor
     text: 'text',
     erase: eraserCursor,
     box: 'crosshair',
@@ -616,19 +704,32 @@ export function TreeCanvas() {
         xmlns="http://www.w3.org/2000/svg"
       >
         <g transform={`translate(${view.tx} ${view.ty}) scale(${view.scale})`}>
-          {layout?.edges.map((edge) => (
-            <line
-              key={`${edge.parentId}-${edge.childId}`}
-              className="connector"
-              x1={edge.from.x}
-              y1={edge.from.y + 9}
-              x2={edge.to.x}
-              y2={edge.to.y - 13}
-            />
-          ))}
+          {layout?.edges.map((edge) => {
+            const parent = nodeById.get(edge.parentId);
+            const child = nodeById.get(edge.childId);
+            if (!parent || !child) return null;
+            // Branch thickness lives on the CHILD: it describes the branch
+            // running down into that node, which is what selecting it implies.
+            const width = effectiveStyle(child.style, child.isLeaf).branchWidth;
+            return (
+              <line
+                key={`${edge.parentId}-${edge.childId}`}
+                className="connector"
+                x1={edge.from.x}
+                y1={edgeStartY(parent)}
+                x2={edge.to.x}
+                y2={edgeEndY(child)}
+                // Inline, not a strokeWidth attribute: `.connector` sets
+                // stroke-width in CSS, and any rule outranks a presentation
+                // attribute — the branch would always render at 1.5.
+                style={{ strokeWidth: width }}
+              />
+            );
+          })}
           {layout?.nodes.map((n) => {
             const selected = selectedIds.includes(n.id);
             const isDrop = n.id === dropTarget;
+            const box = nodeBox(n);
             return (
               <g
                 key={n.id}
@@ -656,22 +757,23 @@ export function TreeCanvas() {
                 {(selected || isDrop) && (
                   <rect
                     className={isDrop ? 'drop-indicator' : 'tnode-box'}
-                    x={n.x - NODE_W / 2}
-                    y={n.y - NODE_H / 2}
-                    width={NODE_W}
-                    height={NODE_H}
+                    x={box.x}
+                    y={box.y}
+                    width={box.w}
+                    height={box.h}
                     rx={6}
                   />
                 )}
                 <rect
                   className="tnode-hit"
-                  x={n.x - NODE_W / 2}
-                  y={n.y - NODE_H / 2}
-                  width={NODE_W}
-                  height={NODE_H}
+                  x={box.x}
+                  y={box.y}
+                  width={box.w}
+                  height={box.h}
                 />
                 <text
                   className={`tnode-label${n.isLeaf ? ' leaf' : ''}`}
+                  style={labelStyle(n)}
                   x={n.x}
                   y={n.y}
                   textAnchor="middle"
@@ -679,6 +781,19 @@ export function TreeCanvas() {
                 >
                   {n.label}
                 </text>
+                {(n.features ?? []).map((f, i) => (
+                  <text
+                    key={`${n.id}-f${i}`}
+                    className="tnode-feature"
+                    x={n.x}
+                    y={featureLineY(n, i)}
+                    fontSize={FEATURE_FONT_SIZE}
+                    textAnchor="middle"
+                    dominantBaseline="hanging"
+                  >
+                    [{f}]
+                  </text>
+                ))}
               </g>
             );
           })}
@@ -720,6 +835,7 @@ export function TreeCanvas() {
                   points={s.points.map((p) => `${p.x},${p.y}`).join(' ')}
                   stroke={s.color}
                   strokeWidth={s.width}
+                  strokeOpacity={s.opacity ?? 1} // Use s.opacity if it exists. Otherwise, use 1 which represents solid color
                   fill="none"
                   pointerEvents="none"
                 />
@@ -731,7 +847,10 @@ export function TreeCanvas() {
               className="stroke"
               points={liveStroke.map((p) => `${p.x},${p.y}`).join(' ')}
               stroke={strokeColor}
-              strokeWidth={2}
+              strokeWidth={tool === 'highlight' ? 14: 2}
+              strokeOpacity={tool === 'highlight' ? 0.3:1}
+              strokeLinecap="round" //SVG attributes of the stroke being round
+              strokeLinejoin="round"
             />
           )}
 
@@ -943,10 +1062,19 @@ export function TreeCanvas() {
           const n = layout?.nodes.find((x) => x.id === editing.id);
           if (!n) return null;
           const pos = toScreen(n.x, n.y);
+          const st = effectiveStyle(n.style, n.isLeaf);
           return (
             <input
               className="inline-edit"
-              style={{ left: pos.left, top: pos.top }}
+              style={{
+                left: pos.left,
+                top: pos.top,
+                // Match the node so the label doesn't jump when editing starts.
+                fontFamily: FONT_STACKS[st.font],
+                fontSize: `${st.fontSize * view.scale}px`,
+                fontWeight: st.fontWeight,
+                fontStyle: st.italic ? 'italic' : 'normal',
+              }}
               autoFocus
               value={editing.value}
               onChange={(e) => setEditing({ id: editing.id, value: e.target.value })}
@@ -992,12 +1120,13 @@ export function TreeCanvas() {
       <div className="canvas-toolbar tools">
         {toolButton('select', <CursorIcon />, 'Select / pan (drag canvas, double-click to rename)')}
         {appMode === 'instructor' && toolButton('draw', <PenIcon />, 'Draw freehand')}
+        {toolButton('highlight', <HighlighterIcon />, 'Highlight')}
         {toolButton('text', <TextIcon />, 'Add text note (click on canvas)')}
         {appMode === 'instructor' && toolButton('arrow', <ArrowIcon />, 'Draw connector arrow between elements')}
         {appMode === 'instructor' && toolButton('box', <BoxIcon />, 'Draw box around elements')}
         {toolButton('erase', <EraserIcon />, 'Eraser (click a drawing, note, box, or arrow)')}
 
-        {(tool === 'draw' || tool === 'text' || tool === 'box' || tool === 'arrow') && (
+        {(tool === 'draw' || tool === 'highlight' || tool === 'text' || tool === 'box' || tool === 'arrow') && (
           <>
             <span className="toolbar-divider" />
             <div className="color-picker">
@@ -1027,6 +1156,27 @@ export function TreeCanvas() {
         <button className="btn icon ghost" title="Redo (Ctrl+Y)" disabled={!canRedo} onClick={redo}>
           <RedoIcon />
         </button>
+
+        {hasAnnotations && (
+          <>
+            <span className="toolbar-divider" />
+            <button
+              className="btn icon ghost"
+              title="Clear annotations without changing the tree"
+              aria-label="Clear annotations"
+              onClick={() => {
+                const confirmed = window.confirm(
+                  'Clear all annotations? Your syntax tree will not be changed.',
+                );
+                if (confirmed) {
+                  clearAnnotations();
+                }
+              }}
+            >
+              <ClearAnnotationsIcon />
+            </button>
+          </>
+        )}
 
         {appMode === 'instructor' && (annotations.notes.length > 0 || annotations.strokes.length > 0) && (
           <>
@@ -1121,24 +1271,24 @@ export function TreeCanvas() {
               Connect <strong>{label1}</strong> &rarr; <strong>{label2}</strong>
             </div>
             <div className="selection-helper-actions">
-              <button 
-                className="btn ghost" 
+              <button
+                className="btn ghost"
                 onClick={swapSelectedDirection}
                 style={{ padding: '4px 8px', fontSize: '12px' }}
                 title="Swap arrow direction"
               >
                 &larr;&rarr; Swap
               </button>
-              <button 
-                className="btn primary" 
+              <button
+                className="btn primary"
                 onClick={connectSelected}
                 style={{ padding: '4px 10px', fontSize: '12px' }}
                 title="Connect selected elements with an arrow (C)"
               >
                 <ArrowIcon /> Connect
               </button>
-              <button 
-                className="btn ghost danger" 
+              <button
+                className="btn ghost danger"
                 onClick={() => select(null)}
                 style={{ padding: '4px 8px', fontSize: '12px' }}
                 title="Cancel selection"

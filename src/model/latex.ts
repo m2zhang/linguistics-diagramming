@@ -46,8 +46,18 @@ export function formatLabel(label: string): string {
  *   \Tree [.S [.NP [.D the ] [.N cat ] ] [.VP [.V sat ] ] ]
  * Internal nodes use `[.LABEL ... ]`; leaves are bare escaped terminals.
  */
+/**
+ * Node label plus any inspector features: `NP` with ['+wh'] becomes `{NP [+wh]}`.
+ * formatLabel brace-wraps it, so the literal brackets are never read as
+ * qtree/forest structure.
+ */
+function nodeLabel(node: TreeNode): string {
+  if (!node.features || node.features.length === 0) return formatLabel(node.label);
+  return formatLabel(`${node.label} [${node.features.join(', ')}]`);
+}
+
 function nodeToQtree(node: TreeNode): string {
-  const label = formatLabel(node.label);
+  const label = nodeLabel(node);
   if (isLeaf(node)) {
     return label;
   }
@@ -62,7 +72,7 @@ export function toQtree(tree: TreeNode): string {
 /** Pretty-print tikz forest notation recursively. */
 function nodeToForest(node: TreeNode, indentLevel: number = 0): string {
   const indent = '  '.repeat(indentLevel);
-  const label = formatLabel(node.label);
+  const label = nodeLabel(node);
 
   if (isLeaf(node)) {
     return `${indent}[${label}]`;
