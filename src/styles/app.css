@@ -330,6 +330,12 @@
   font-style: italic;
   font-family: var(--font-ui);
 }
+.tnode-feature {
+  font-family: var(--font-mono);
+  fill: var(--text-dim);
+  pointer-events: none;
+  user-select: none;
+}
 .tnode-hit {
   fill: transparent;
   cursor: pointer;
@@ -379,6 +385,122 @@
   font-weight: 400;
   font-size: 14px;
   min-width: 140px;
+}
+
+/* ---------- Node inspector ---------- */
+.inspector {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 16px;
+  border-bottom: 1px solid var(--border);
+}
+.insp-badge {
+  font-size: 10.5px;
+  font-weight: 600;
+  color: var(--accent);
+  background: var(--accent-soft);
+  border-radius: 20px;
+  padding: 2px 8px;
+}
+.insp-group {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+.insp-label {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--text-dim);
+}
+.insp-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.insp-input {
+  flex: 1;
+  min-width: 0;
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  font-family: inherit;
+  font-size: 13px;
+  padding: 5px 8px;
+  outline: none;
+}
+.insp-input:focus {
+  border-color: var(--accent);
+}
+select.insp-input {
+  cursor: pointer;
+}
+.insp-range {
+  flex: 1;
+  min-width: 0;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+.insp-value {
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  color: var(--text-dim);
+  min-width: 38px;
+  text-align: right;
+}
+.insp-swatch {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: 1px solid var(--border-strong);
+  padding: 0;
+  transition: transform 0.1s, box-shadow 0.15s;
+}
+.insp-swatch:hover {
+  transform: scale(1.12);
+}
+.insp-swatch.active {
+  box-shadow: 0 0 0 2px var(--bg-elevated), 0 0 0 4px var(--accent);
+}
+/* "Theme default" swatch: a diagonal slash over the panel background. */
+.insp-swatch.default {
+  background: linear-gradient(
+    135deg,
+    var(--bg-input) 0 44%,
+    var(--border-strong) 44% 56%,
+    var(--bg-input) 56% 100%
+  );
+}
+.feature-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+.feature-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  border-radius: var(--radius-sm);
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  padding: 2px 3px 2px 7px;
+}
+.feature-chip-x {
+  background: none;
+  border: none;
+  color: inherit;
+  opacity: 0.65;
+  font-size: 14px;
+  line-height: 1;
+  padding: 0 3px;
+}
+.feature-chip-x:hover {
+  opacity: 1;
+  color: var(--danger);
 }
 
 /* ---------- Bracket editor ---------- */

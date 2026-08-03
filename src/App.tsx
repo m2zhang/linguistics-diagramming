@@ -1,5 +1,6 @@
 import { BracketEditor } from './components/BracketEditor';
 import { LatexOutput } from './components/LatexOutput';
+import { NodeInspector } from './components/NodeInspector';
 import { NodeLibrary } from './components/NodeLibrary';
 import { SymbolLibrary } from './components/SymbolLibrary';
 import { TemplatePicker } from './components/TemplatePicker';
@@ -37,6 +38,7 @@ export default function App() {
 
         {rightpaneOpen && (
           <aside className="rightpane">
+            <NodeInspector />
             <BracketEditor />
             <LatexOutput />
           </aside>

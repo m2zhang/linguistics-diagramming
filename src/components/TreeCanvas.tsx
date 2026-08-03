@@ -1,10 +1,18 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { layoutTree, PositionedNode } from '../model/layout';
+import {
+  edgeEndY,
+  edgeStartY,
+  FEATURE_FONT_SIZE,
+  featureLineY,
+  layoutTree,
+  nodeBox,
+  PositionedNode,
+} from '../model/layout';
 import { useTreeStore } from '../store/treeStore';
 import { useUiStore } from '../store/uiStore';
 import { drawingToTree, pointToSegment } from '../model/drawingToTree';
 import { sketchToTree } from '../vision/sketchToTree';
-import { makeId } from '../model/types';
+import { effectiveStyle, FONT_STACKS, makeId } from '../model/types';
 import {
   CursorIcon,
   EraserIcon,
@@ -43,8 +51,17 @@ function ArrowIcon() {
   );
 }
 
-const NODE_W = 54;
-const NODE_H = 26;
+/** Inline SVG presentation for a node's label, honouring its inspector style. */
+function labelStyle(n: PositionedNode): React.CSSProperties {
+  const s = effectiveStyle(n.style, n.isLeaf);
+  return {
+    fontFamily: FONT_STACKS[s.font],
+    fontSize: `${s.fontSize}px`,
+    fontWeight: s.fontWeight,
+    fontStyle: s.italic ? 'italic' : 'normal',
+    ...(s.color ? { fill: s.color } : null),
+  };
+}
 
 export interface CanvasHandle {
   svg: SVGSVGElement | null;
@@ -113,6 +130,11 @@ export function TreeCanvas() {
   const liveConnectorRef = useRef<{ startX: number; startY: number; endX: number; endY: number } | null>(null);
 
   const layout = useMemo(() => (tree ? layoutTree(tree) : null), [tree]);
+  // Edges need their endpoints' styles (branch thickness, label size, features).
+  const nodeById = useMemo(
+    () => new Map((layout?.nodes ?? []).map((n) => [n.id, n])),
+    [layout],
+  );
 
   // Expose svg element to the export module.
   useEffect(() => {
@@ -161,8 +183,9 @@ export function TreeCanvas() {
     };
 
     for (const n of layout?.nodes ?? []) {
-      const dx = Math.max(Math.abs(p.x - n.x) - NODE_W / 2, 0);
-      const dy = Math.max(Math.abs(p.y - n.y) - NODE_H / 2, 0);
+      const b = nodeBox(n);
+      const dx = Math.max(b.x - p.x, p.x - (b.x + b.w), 0);
+      const dy = Math.max(b.y - p.y, p.y - (b.y + b.h), 0);
       consider(n.id, Math.hypot(dx, dy), true);
     }
     for (const n of annotations.notes) {
@@ -604,19 +627,32 @@ export function TreeCanvas() {
         xmlns="http://www.w3.org/2000/svg"
       >
         <g transform={`translate(${view.tx} ${view.ty}) scale(${view.scale})`}>
-          {layout?.edges.map((edge) => (
-            <line
-              key={`${edge.parentId}-${edge.childId}`}
-              className="connector"
-              x1={edge.from.x}
-              y1={edge.from.y + 9}
-              x2={edge.to.x}
-              y2={edge.to.y - 13}
-            />
-          ))}
+          {layout?.edges.map((edge) => {
+            const parent = nodeById.get(edge.parentId);
+            const child = nodeById.get(edge.childId);
+            if (!parent || !child) return null;
+            // Branch thickness lives on the CHILD: it describes the branch
+            // running down into that node, which is what selecting it implies.
+            const width = effectiveStyle(child.style, child.isLeaf).branchWidth;
+            return (
+              <line
+                key={`${edge.parentId}-${edge.childId}`}
+                className="connector"
+                x1={edge.from.x}
+                y1={edgeStartY(parent)}
+                x2={edge.to.x}
+                y2={edgeEndY(child)}
+                // Inline, not a strokeWidth attribute: `.connector` sets
+                // stroke-width in CSS, and any rule outranks a presentation
+                // attribute — the branch would always render at 1.5.
+                style={{ strokeWidth: width }}
+              />
+            );
+          })}
           {layout?.nodes.map((n) => {
             const selected = selectedIds.includes(n.id);
             const isDrop = n.id === dropTarget;
+            const box = nodeBox(n);
             return (
               <g
                 key={n.id}
@@ -644,22 +680,23 @@ export function TreeCanvas() {
                 {(selected || isDrop) && (
                   <rect
                     className={isDrop ? 'drop-indicator' : 'tnode-box'}
-                    x={n.x - NODE_W / 2}
-                    y={n.y - NODE_H / 2}
-                    width={NODE_W}
-                    height={NODE_H}
+                    x={box.x}
+                    y={box.y}
+                    width={box.w}
+                    height={box.h}
                     rx={6}
                   />
                 )}
                 <rect
                   className="tnode-hit"
-                  x={n.x - NODE_W / 2}
-                  y={n.y - NODE_H / 2}
-                  width={NODE_W}
-                  height={NODE_H}
+                  x={box.x}
+                  y={box.y}
+                  width={box.w}
+                  height={box.h}
                 />
                 <text
                   className={`tnode-label${n.isLeaf ? ' leaf' : ''}`}
+                  style={labelStyle(n)}
                   x={n.x}
                   y={n.y}
                   textAnchor="middle"
@@ -667,6 +704,19 @@ export function TreeCanvas() {
                 >
                   {n.label}
                 </text>
+                {(n.features ?? []).map((f, i) => (
+                  <text
+                    key={`${n.id}-f${i}`}
+                    className="tnode-feature"
+                    x={n.x}
+                    y={featureLineY(n, i)}
+                    fontSize={FEATURE_FONT_SIZE}
+                    textAnchor="middle"
+                    dominantBaseline="hanging"
+                  >
+                    [{f}]
+                  </text>
+                ))}
               </g>
             );
           })}
@@ -931,10 +981,19 @@ export function TreeCanvas() {
           const n = layout?.nodes.find((x) => x.id === editing.id);
           if (!n) return null;
           const pos = toScreen(n.x, n.y);
+          const st = effectiveStyle(n.style, n.isLeaf);
           return (
             <input
               className="inline-edit"
-              style={{ left: pos.left, top: pos.top }}
+              style={{
+                left: pos.left,
+                top: pos.top,
+                // Match the node so the label doesn't jump when editing starts.
+                fontFamily: FONT_STACKS[st.font],
+                fontSize: `${st.fontSize * view.scale}px`,
+                fontWeight: st.fontWeight,
+                fontStyle: st.italic ? 'italic' : 'normal',
+              }}
               autoFocus
               value={editing.value}
               onChange={(e) => setEditing({ id: editing.id, value: e.target.value })}

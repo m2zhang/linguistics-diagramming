@@ -1,5 +1,12 @@
-import { layoutTree } from '../model/layout';
-import { TreeNode } from '../model/types';
+import {
+  edgeEndY,
+  edgeStartY,
+  FEATURE_FONT_SIZE,
+  featureLineY,
+  layoutTree,
+  PositionedNode,
+} from '../model/layout';
+import { effectiveStyle, FONT_STACKS, TreeNode } from '../model/types';
 import { useTreeStore } from '../store/treeStore';
 
 export interface PreparedSvg {
@@ -39,6 +46,7 @@ export function buildExportSvg(tree: TreeNode, opts?: { background?: string | nu
   const colInternal = cssVar('--node-internal', '#2f3a7a');
   const colLeaf = cssVar('--node-leaf', '#1d8a6a');
   const colConnector = cssVar('--connector', '#9aa1b8');
+  const colFeature = cssVar('--text-dim', '#5b6076');
 
   if (opts?.background) {
     const bg = document.createElementNS(NS, 'rect');
@@ -48,35 +56,49 @@ export function buildExportSvg(tree: TreeNode, opts?: { background?: string | nu
     svg.appendChild(bg);
   }
 
+  const byId = new Map<string, PositionedNode>(layout.nodes.map((n) => [n.id, n]));
+
   for (const e of layout.edges) {
+    const parent = byId.get(e.parentId);
+    const child = byId.get(e.childId);
+    if (!parent || !child) continue;
     const line = document.createElementNS(NS, 'line');
     line.setAttribute('x1', String(e.from.x));
-    line.setAttribute('y1', String(e.from.y + 9));
+    line.setAttribute('y1', String(edgeStartY(parent)));
     line.setAttribute('x2', String(e.to.x));
-    line.setAttribute('y2', String(e.to.y - 13));
+    line.setAttribute('y2', String(edgeEndY(child)));
     line.setAttribute('stroke', colConnector);
-    line.setAttribute('stroke-width', '1.5');
+    line.setAttribute('stroke-width', String(effectiveStyle(child.style, child.isLeaf).branchWidth));
     svg.appendChild(line);
   }
 
   for (const n of layout.nodes) {
+    const s = effectiveStyle(n.style, n.isLeaf);
     const text = document.createElementNS(NS, 'text');
     text.setAttribute('x', String(n.x));
     text.setAttribute('y', String(n.y));
     text.setAttribute('text-anchor', 'middle');
     text.setAttribute('dominant-baseline', 'central');
-    text.setAttribute('font-size', '16');
-    text.setAttribute('font-weight', '600');
-    if (n.isLeaf) {
-      text.setAttribute('fill', colLeaf);
-      text.setAttribute('font-style', 'italic');
-      text.setAttribute('font-family', 'Inter, sans-serif');
-    } else {
-      text.setAttribute('fill', colInternal);
-      text.setAttribute('font-family', 'Montserrat, Inter, sans-serif');
-    }
+    text.setAttribute('font-size', String(s.fontSize));
+    text.setAttribute('font-weight', String(s.fontWeight));
+    text.setAttribute('font-family', FONT_STACKS[s.font]);
+    if (s.italic) text.setAttribute('font-style', 'italic');
+    text.setAttribute('fill', s.color ?? (n.isLeaf ? colLeaf : colInternal));
     text.textContent = n.label;
     svg.appendChild(text);
+
+    (n.features ?? []).forEach((f, i) => {
+      const feat = document.createElementNS(NS, 'text');
+      feat.setAttribute('x', String(n.x));
+      feat.setAttribute('y', String(featureLineY(n, i)));
+      feat.setAttribute('text-anchor', 'middle');
+      feat.setAttribute('dominant-baseline', 'hanging');
+      feat.setAttribute('font-size', String(FEATURE_FONT_SIZE));
+      feat.setAttribute('font-family', FONT_STACKS.mono);
+      feat.setAttribute('fill', colFeature);
+      feat.textContent = `[${f}]`;
+      svg.appendChild(feat);
+    });
   }
 
   return { svg, width: layout.width, height: layout.height };
