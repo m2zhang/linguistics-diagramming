@@ -8,6 +8,13 @@ export interface AuthUser {
   displayName: string;
   role: Role;
   createdAt: string;
+  institution: string | null;
+  /** Students only. */
+  program: string | null;
+  /** Instructors only. */
+  department: string | null;
+  /** False until the user finishes /onboarding; AuthGate keys off this. */
+  onboarded: boolean;
 }
 
 interface ProfileRow {
@@ -16,7 +23,14 @@ interface ProfileRow {
   display_name: string;
   role: Role;
   created_at: string;
+  institution: string | null;
+  program: string | null;
+  department: string | null;
+  onboarded: boolean;
 }
+
+const PROFILE_COLS =
+  'id, email, display_name, role, created_at, institution, program, department, onboarded';
 
 function toAuthUser(row: ProfileRow): AuthUser {
   return {
@@ -25,19 +39,26 @@ function toAuthUser(row: ProfileRow): AuthUser {
     displayName: row.display_name,
     role: row.role,
     createdAt: row.created_at,
+    institution: row.institution,
+    program: row.program,
+    department: row.department,
+    onboarded: row.onboarded,
   };
 }
 
-/** display_name/role travel in user metadata; a trigger on auth.users copies
- *  them into public.profiles, which is what the rest of the app reads. */
-export async function signup(input: { email: string; password: string; displayName: string; role: Role }) {
+/** display_name travels in user metadata; a trigger on auth.users copies it
+ *  into public.profiles. No role is set here — the account starts unonboarded
+ *  and picks a role at /onboarding, the one step both signup paths share. */
+export async function signup(input: { email: string; password: string; displayName: string }) {
   const { data, error } = await supabase.auth.signUp({
     email: input.email,
     password: input.password,
-    options: { data: { display_name: input.displayName, role: input.role } },
+    options: { data: { display_name: input.displayName } },
   });
   if (error) throw new Error(error.message);
-  return { id: data.user?.id ?? '', role: input.role };
+  // With "Confirm email" enabled in Supabase, signUp returns a user but no
+  // session — the caller must not send them into the app yet.
+  return { id: data.user?.id ?? '', needsEmailConfirmation: data.session === null };
 }
 
 export async function login(input: { email: string; password: string }) {
@@ -49,39 +70,44 @@ export async function login(input: { email: string; password: string }) {
   return { id: data.user?.id ?? '' };
 }
 
-const PENDING_ROLE_KEY = 'syntaxtree.pendingRole';
-
-/** OAuth gives us no way to ask "student or instructor?" mid-flow, and Google
- *  supplies the user metadata, so the signup screen's choice is stashed here
- *  and applied by applyPendingRole() once the user lands back. */
-export async function signInWithGoogle(role?: Role) {
-  if (role) localStorage.setItem(PENDING_ROLE_KEY, role);
+export async function signInWithGoogle() {
   const { error } = await supabase.auth.signInWithOAuth({
     provider: 'google',
     options: { redirectTo: `${window.location.origin}/dashboard` },
   });
-  if (error) {
-    localStorage.removeItem(PENDING_ROLE_KEY);
-    throw new Error(error.message);
-  }
+  if (error) throw new Error(error.message);
 }
 
-/** Applies a role chosen on the signup screen before a Google redirect. Only
- *  ever upgrades a brand-new account still sitting on the trigger's 'student'
- *  default — it will not overwrite the role of an existing account. */
-export async function applyPendingRole(current: AuthUser): Promise<AuthUser> {
-  const pending = localStorage.getItem(PENDING_ROLE_KEY) as Role | null;
-  if (!pending) return current;
-  localStorage.removeItem(PENDING_ROLE_KEY);
-  if (pending === current.role || current.role !== 'student') return current;
+/** Finishes /onboarding. This is where role is actually decided for both
+ *  signup paths — Google can't be asked mid-redirect, so rather than guessing
+ *  and patching up afterwards, neither path sets a role until here. */
+export async function completeOnboarding(input: {
+  role: Role;
+  displayName: string;
+  institution: string | null;
+  program: string | null;
+  department: string | null;
+}): Promise<AuthUser> {
+  const { data: sessionData } = await supabase.auth.getSession();
+  const userId = sessionData.session?.user?.id;
+  if (!userId) throw new Error('not authenticated');
 
   const { data, error } = await supabase
     .from('profiles')
-    .update({ role: pending })
-    .eq('id', current.id)
-    .select('id, email, display_name, role, created_at')
+    .update({
+      role: input.role,
+      display_name: input.displayName,
+      institution: input.institution,
+      // Keep the field that doesn't apply to this role null rather than
+      // leaving a stale value behind if they switch role mid-flow.
+      program: input.role === 'student' ? input.program : null,
+      department: input.role === 'instructor' ? input.department : null,
+      onboarded: true,
+    })
+    .eq('id', userId)
+    .select(PROFILE_COLS)
     .single();
-  if (error) return current; // Not worth failing the login over.
+  if (error) throw new Error(error.message);
   return toAuthUser(data as ProfileRow);
 }
 
@@ -98,7 +124,7 @@ export async function fetchMe(): Promise<AuthUser> {
 
   const { data, error } = await supabase
     .from('profiles')
-    .select('id, email, display_name, role, created_at')
+    .select(PROFILE_COLS)
     .eq('id', userId)
     .single();
   if (error) throw new Error(error.message);
@@ -114,7 +140,7 @@ export async function updateProfile(input: { displayName: string }) {
     .from('profiles')
     .update({ display_name: input.displayName })
     .eq('id', userId)
-    .select('id, email, display_name, role, created_at')
+    .select(PROFILE_COLS)
     .single();
   if (error) throw new Error(error.message);
   return toAuthUser(data as ProfileRow);

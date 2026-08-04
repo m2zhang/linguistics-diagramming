@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import {
-  applyPendingRole,
+  completeOnboarding,
   fetchMe,
   login as apiLogin,
   logout as apiLogout,
@@ -23,9 +23,20 @@ interface AuthState {
    *  a successful login/signup. */
   refresh: () => Promise<void>;
   login: (email: string, password: string) => Promise<void>;
-  signup: (input: { email: string; password: string; displayName: string; role: Role }) => Promise<void>;
+  signup: (input: {
+    email: string;
+    password: string;
+    displayName: string;
+  }) => Promise<{ needsEmailConfirmation: boolean }>;
   logout: () => Promise<void>;
   updateProfile: (displayName: string) => Promise<void>;
+  finishOnboarding: (input: {
+    role: Role;
+    displayName: string;
+    institution: string | null;
+    program: string | null;
+    department: string | null;
+  }) => Promise<void>;
 }
 
 export const useAuthStore = create<AuthState>((set, get) => ({
@@ -34,10 +45,10 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
   refresh: async () => {
     try {
-      // applyPendingRole is a no-op unless the user just came back from a
-      // Google signup where they'd picked "Instructor".
-      const user = await applyPendingRole(await fetchMe());
+      const user = await fetchMe();
       set({ user, status: 'authenticated' });
+      // The stored role is what drives student vs instructor mode on every
+      // sign-in, so it is applied here rather than anywhere in the UI.
       useUiStore.getState().setAppMode(user.role);
     } catch {
       set({ user: null, status: 'unauthenticated' });
@@ -50,8 +61,10 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 
   signup: async (input) => {
-    await apiSignup(input);
+    const { needsEmailConfirmation } = await apiSignup(input);
+    if (needsEmailConfirmation) return { needsEmailConfirmation: true };
     await get().refresh();
+    return { needsEmailConfirmation: false };
   },
 
   logout: async () => {
@@ -62,5 +75,13 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   updateProfile: async (displayName) => {
     const user = await apiUpdateProfile({ displayName });
     set({ user });
+  },
+
+  finishOnboarding: async (input) => {
+    const user = await completeOnboarding(input);
+    set({ user });
+    // Onboarding is where the role is first set, so the app mode has to be
+    // re-synced here — refresh() won't run again until the next load.
+    useUiStore.getState().setAppMode(user.role);
   },
 }));

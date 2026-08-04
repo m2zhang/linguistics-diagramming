@@ -7,6 +7,7 @@ import { AuthLayout } from '../components/layout/AuthLayout';
  *  (preserving the attempted location) when the session check fails. */
 export function AuthGate({ children }: { children: ReactNode }) {
   const status = useAuthStore((s) => s.status);
+  const user = useAuthStore((s) => s.user);
   const refresh = useAuthStore((s) => s.refresh);
   const location = useLocation();
 
@@ -32,6 +33,13 @@ export function AuthGate({ children }: { children: ReactNode }) {
 
   if (status === 'unauthenticated') {
     return <Navigate to="/login" replace state={{ from: location }} />;
+  }
+
+  // A signed-in account with no role chosen yet can't render a dashboard —
+  // finish onboarding first. The /onboarding route itself is exempt, or this
+  // would redirect to itself forever.
+  if (user && !user.onboarded && location.pathname !== '/onboarding') {
+    return <Navigate to="/onboarding" replace />;
   }
 
   return <>{children}</>;

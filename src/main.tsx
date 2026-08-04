@@ -19,6 +19,7 @@ import { SignupScreen } from './auth/SignupScreen';
 import { ForgotPasswordScreen } from './auth/ForgotPasswordScreen';
 import { ResetPasswordScreen } from './auth/ResetPasswordScreen';
 import { Dashboard } from './pages/Dashboard';
+import { Onboarding } from './pages/Onboarding';
 import { Profile } from './pages/Profile';
 import { CourseShell } from './pages/course/CourseShell';
 import { CourseLectures } from './pages/course/CourseLectures';
@@ -38,6 +39,14 @@ createRoot(document.getElementById('root')!).render(
         <Route path="/signup" element={<SignupScreen />} />
         <Route path="/forgot-password" element={<ForgotPasswordScreen />} />
         <Route path="/reset-password" element={<ResetPasswordScreen />} />
+        <Route
+          path="/onboarding"
+          element={
+            <AuthGate>
+              <Onboarding />
+            </AuthGate>
+          }
+        />
         <Route
           path="/dashboard"
           element={

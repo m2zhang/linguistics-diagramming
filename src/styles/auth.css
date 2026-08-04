@@ -129,6 +129,53 @@
   cursor: default;
 }
 
+/* Onboarding role cards. Deliberately large targets with a description each —
+   this is a one-time decision that changes the whole app, so it gets more
+   room than the compact toggle it replaced. */
+.onboard-roles {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 8px;
+}
+
+.onboard-role {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  width: 100%;
+  padding: 16px;
+  text-align: left;
+  color: var(--text);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: border-color 0.15s, background-color 0.15s, transform 0.1s;
+}
+
+.onboard-role:hover {
+  background: var(--bg-input);
+  border-color: var(--accent);
+  transform: translateY(-1px);
+}
+
+.onboard-role svg {
+  color: var(--accent);
+}
+
+.onboard-role-title {
+  font-weight: 650;
+  font-size: 15px;
+}
+
+.onboard-role-desc {
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--text-dim);
+}
+
 .auth-divider {
   display: flex;
   align-items: center;

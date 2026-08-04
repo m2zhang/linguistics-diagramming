@@ -1,12 +1,10 @@
 import { useState } from 'react';
 import { signInWithGoogle } from '../data/authClient';
-import type { Role } from '../data/authClient';
 
 /** Google sign-in, offered alongside email+password on both auth screens.
- *  `role` is only passed from the signup screen — OAuth has no place to ask
- *  "student or instructor?", so the choice is stashed before the redirect and
- *  applied once the user lands back (see applyPendingRole in authClient). */
-export function GoogleButton({ role, label }: { role?: Role; label: string }) {
+ *  New Google accounts land unonboarded, so AuthGate routes them to
+ *  /onboarding to pick a role before anything else renders. */
+export function GoogleButton({ label }: { label: string }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -14,7 +12,7 @@ export function GoogleButton({ role, label }: { role?: Role; label: string }) {
     setError(null);
     setBusy(true);
     try {
-      await signInWithGoogle(role);
+      await signInWithGoogle();
       // On success the browser is redirecting to Google; leave `busy` set so
       // the button stays disabled for the moment before navigation.
     } catch (err) {

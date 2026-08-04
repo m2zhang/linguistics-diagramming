@@ -1,7 +1,6 @@
 import { FormEvent, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../store/authStore';
-import type { Role } from '../data/authClient';
 import { TreeLogo } from '../components/icons';
 import { AuthLayout } from '../components/layout/AuthLayout';
 import { GoogleButton } from './GoogleButton';
@@ -13,8 +12,8 @@ export function SignupScreen() {
   const [displayName, setDisplayName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [role, setRole] = useState<Role>('student');
   const [error, setError] = useState<string | null>(null);
+  const [confirmEmail, setConfirmEmail] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
   const onSubmit = async (e: FormEvent) => {
@@ -22,14 +21,39 @@ export function SignupScreen() {
     setError(null);
     setSubmitting(true);
     try {
-      await signup({ email, password, displayName, role });
-      navigate('/dashboard', { replace: true });
+      const { needsEmailConfirmation } = await signup({ email, password, displayName });
+      if (needsEmailConfirmation) {
+        setConfirmEmail(true);
+        return;
+      }
+      // Role is chosen during onboarding, which AuthGate routes to next.
+      navigate('/onboarding', { replace: true });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Sign up failed');
     } finally {
       setSubmitting(false);
     }
   };
+
+  if (confirmEmail) {
+    return (
+      <AuthLayout>
+        <div className="auth-card">
+          <div className="auth-title">
+            <TreeLogo style={{ width: 20, height: 20, verticalAlign: 'middle', marginRight: 8 }} />
+            Confirm your email
+          </div>
+          <p className="auth-subtitle">
+            We sent a confirmation link to <strong>{email}</strong>. Click it, then sign in to
+            finish setting up your account.
+          </p>
+          <div className="auth-switch">
+            <Link to="/login">Back to sign in</Link>
+          </div>
+        </div>
+      </AuthLayout>
+    );
+  }
 
   return (
     <AuthLayout>
@@ -42,28 +66,9 @@ export function SignupScreen() {
 
         {error && <div className="auth-error">{error}</div>}
 
-        {/* Above the Google button on purpose: OAuth redirects away immediately,
-            so the role has to be chosen before either path is taken. */}
-        <div className="auth-role-group" role="radiogroup" aria-label="Account type">
-          <button
-            type="button"
-            className={`auth-role-option${role === 'student' ? ' active' : ''}`}
-            aria-pressed={role === 'student'}
-            onClick={() => setRole('student')}
-          >
-            Student
-          </button>
-          <button
-            type="button"
-            className={`auth-role-option${role === 'instructor' ? ' active' : ''}`}
-            aria-pressed={role === 'instructor'}
-            onClick={() => setRole('instructor')}
-          >
-            Instructor
-          </button>
-        </div>
-
-        <GoogleButton role={role} label="Sign up with Google" />
+        {/* No role picker here — both signup paths converge on /onboarding,
+            which is the only place Google users can be asked. */}
+        <GoogleButton label="Sign up with Google" />
 
         <form onSubmit={onSubmit}>
           <div className="auth-field">
