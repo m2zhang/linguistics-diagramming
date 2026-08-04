@@ -2,38 +2,24 @@ import { FormEvent, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { TreeLogo } from '../components/icons';
 import { AuthLayout } from '../components/layout/AuthLayout';
+import { requestPasswordReset } from '../data/authClient';
 
 export function ForgotPasswordScreen() {
   const [email, setEmail] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
-  const [devToken, setDevToken] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
   const onSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setError(null);
     setSuccessMessage(null);
-    setDevToken(null);
     setSubmitting(true);
-    
+
     try {
-      const response = await fetch('/api/auth/forgot-password', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email }),
-      });
-      
-      const data = await response.json();
-      
-      if (!response.ok) {
-        throw new Error(data.error || 'Failed to request password reset');
-      }
-      
-      setSuccessMessage(data.message);
-      if (data.devToken) {
-        setDevToken(data.devToken);
-      }
+      // Supabase emails the recovery link; there is no token for us to handle.
+      await requestPasswordReset(email);
+      setSuccessMessage('If that email exists, a reset link is on its way. Check your inbox.');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred');
     } finally {
@@ -52,16 +38,7 @@ export function ForgotPasswordScreen() {
 
         {error && <div className="auth-error">{error}</div>}
         {successMessage && (
-          <div style={{ color: 'green', marginBottom: '1rem', fontSize: '0.9rem' }}>
-            {successMessage}
-            {devToken && (
-              <div style={{ marginTop: '0.5rem', padding: '0.5rem', background: '#eef2ff', borderRadius: '4px', wordBreak: 'break-all' }}>
-                <strong>Dev Token:</strong> {devToken}
-                <br/>
-                <Link to={`/reset-password?token=${devToken}`} style={{textDecoration: 'underline'}}>Click here to reset</Link>
-              </div>
-            )}
-          </div>
+          <div style={{ color: 'green', marginBottom: '1rem', fontSize: '0.9rem' }}>{successMessage}</div>
         )}
 
         <form onSubmit={onSubmit}>

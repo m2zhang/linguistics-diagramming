@@ -99,6 +99,55 @@
   margin-top: 4px;
 }
 
+/* Google sign-in. Deliberately a neutral surface rather than the accent
+   colour — the coloured "G" is the recognisable mark, and a branded blue
+   button next to our own primary button reads as two competing CTAs. */
+.auth-provider-btn {
+  width: 100%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 10px 14px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: background-color 0.15s, border-color 0.15s;
+}
+
+.auth-provider-btn:hover:not(:disabled) {
+  background: var(--bg-input);
+  border-color: var(--accent);
+}
+
+.auth-provider-btn:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.auth-divider {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 16px 0;
+  color: var(--text-faint);
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.auth-divider::before,
+.auth-divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--border);
+}
+
 .auth-switch {
   margin-top: 18px;
   text-align: center;

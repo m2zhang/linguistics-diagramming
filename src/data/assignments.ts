@@ -1,4 +1,5 @@
 import type { ProjectState } from '../export/projectState';
+import { supabase } from '../lib/supabase';
 
 export type AssignmentMode = 'blank' | 'template';
 
@@ -15,37 +16,56 @@ export interface Assignment {
   createdAt: string;
 }
 
-async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(`/api${path}`, {
-    credentials: 'include',
-    headers: { 'Content-Type': 'application/json' },
-    ...init,
-  });
-
-  if (!res.ok) {
-    let message = `Request failed (${res.status})`;
-    try {
-      const body = await res.json();
-      if (body?.error) message = body.error;
-    } catch {
-      // Non-JSON error body — keep the generic message.
-    }
-    throw new Error(message);
-  }
-
-  if (res.status === 204) return undefined as T;
-  return (await res.json()) as T;
+interface AssignmentRow {
+  id: string;
+  course_id: string;
+  lecture_id: string | null;
+  title: string;
+  instructions: string | null;
+  mode: AssignmentMode;
+  template_content: ProjectState | null;
+  due_at: string | null;
+  max_grade: number | string | null;
+  created_at: string;
 }
 
-export function listAssignments(courseId: string) {
-  return request<Assignment[]>(`/courses/${courseId}/assignments`);
+const COLS =
+  'id, course_id, lecture_id, title, instructions, mode, template_content, due_at, max_grade, created_at';
+
+function toAssignment(row: AssignmentRow): Assignment {
+  return {
+    id: row.id,
+    courseId: row.course_id,
+    lectureId: row.lecture_id,
+    title: row.title,
+    instructions: row.instructions,
+    mode: row.mode,
+    templateContent: row.template_content,
+    dueAt: row.due_at,
+    // numeric(5,2) arrives as a string over PostgREST.
+    maxGrade: row.max_grade === null ? null : Number(row.max_grade),
+    createdAt: row.created_at,
+  };
 }
 
-export function getAssignment(assignmentId: string) {
-  return request<Assignment>(`/assignments/${assignmentId}`);
+export async function listAssignments(courseId: string): Promise<Assignment[]> {
+  const { data, error } = await supabase
+    .from('assignments')
+    .select(COLS)
+    .eq('course_id', courseId)
+    .order('due_at', { ascending: true, nullsFirst: false })
+    .order('created_at', { ascending: true });
+  if (error) throw new Error(error.message);
+  return (data as AssignmentRow[]).map(toAssignment);
 }
 
-export function createAssignment(
+export async function getAssignment(assignmentId: string): Promise<Assignment> {
+  const { data, error } = await supabase.from('assignments').select(COLS).eq('id', assignmentId).single();
+  if (error) throw new Error(error.message);
+  return toAssignment(data as AssignmentRow);
+}
+
+export async function createAssignment(
   courseId: string,
   input: {
     title: string;
@@ -56,17 +76,46 @@ export function createAssignment(
     lectureId?: string | null;
     maxGrade?: number | null;
   },
-) {
-  return request<Assignment>(`/courses/${courseId}/assignments`, { method: 'POST', body: JSON.stringify(input) });
+): Promise<Assignment> {
+  const { data, error } = await supabase
+    .from('assignments')
+    .insert({
+      course_id: courseId,
+      lecture_id: input.lectureId ?? null,
+      title: input.title,
+      instructions: input.instructions ?? null,
+      mode: input.mode,
+      template_content: input.mode === 'template' ? input.templateContent ?? null : null,
+      due_at: input.dueAt ?? null,
+      max_grade: input.maxGrade ?? null,
+    })
+    .select(COLS)
+    .single();
+  if (error) throw new Error(error.message);
+  return toAssignment(data as AssignmentRow);
 }
 
-export function updateAssignment(
+export async function updateAssignment(
   assignmentId: string,
   input: { title?: string; instructions?: string | null; dueAt?: string | null; maxGrade?: number | null },
-) {
-  return request<Assignment>(`/assignments/${assignmentId}`, { method: 'PATCH', body: JSON.stringify(input) });
+): Promise<Assignment> {
+  const patch: Record<string, unknown> = {};
+  if (input.title !== undefined) patch.title = input.title;
+  if (input.instructions !== undefined) patch.instructions = input.instructions;
+  if (input.dueAt !== undefined) patch.due_at = input.dueAt;
+  if (input.maxGrade !== undefined) patch.max_grade = input.maxGrade;
+
+  const { data, error } = await supabase
+    .from('assignments')
+    .update(patch)
+    .eq('id', assignmentId)
+    .select(COLS)
+    .single();
+  if (error) throw new Error(error.message);
+  return toAssignment(data as AssignmentRow);
 }
 
-export function deleteAssignment(assignmentId: string) {
-  return request<void>(`/assignments/${assignmentId}`, { method: 'DELETE' });
+export async function deleteAssignment(assignmentId: string): Promise<void> {
+  const { error } = await supabase.from('assignments').delete().eq('id', assignmentId);
+  if (error) throw new Error(error.message);
 }

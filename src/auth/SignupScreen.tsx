@@ -4,6 +4,7 @@ import { useAuthStore } from '../store/authStore';
 import type { Role } from '../data/authClient';
 import { TreeLogo } from '../components/icons';
 import { AuthLayout } from '../components/layout/AuthLayout';
+import { GoogleButton } from './GoogleButton';
 
 export function SignupScreen() {
   const signup = useAuthStore((s) => s.signup);
@@ -41,6 +42,29 @@ export function SignupScreen() {
 
         {error && <div className="auth-error">{error}</div>}
 
+        {/* Above the Google button on purpose: OAuth redirects away immediately,
+            so the role has to be chosen before either path is taken. */}
+        <div className="auth-role-group" role="radiogroup" aria-label="Account type">
+          <button
+            type="button"
+            className={`auth-role-option${role === 'student' ? ' active' : ''}`}
+            aria-pressed={role === 'student'}
+            onClick={() => setRole('student')}
+          >
+            Student
+          </button>
+          <button
+            type="button"
+            className={`auth-role-option${role === 'instructor' ? ' active' : ''}`}
+            aria-pressed={role === 'instructor'}
+            onClick={() => setRole('instructor')}
+          >
+            Instructor
+          </button>
+        </div>
+
+        <GoogleButton role={role} label="Sign up with Google" />
+
         <form onSubmit={onSubmit}>
           <div className="auth-field">
             <label htmlFor="signup-name">Name</label>
@@ -75,25 +99,6 @@ export function SignupScreen() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
             />
-          </div>
-
-          <div className="auth-role-group" role="radiogroup" aria-label="Account type">
-            <button
-              type="button"
-              className={`auth-role-option${role === 'student' ? ' active' : ''}`}
-              aria-pressed={role === 'student'}
-              onClick={() => setRole('student')}
-            >
-              Student
-            </button>
-            <button
-              type="button"
-              className={`auth-role-option${role === 'instructor' ? ' active' : ''}`}
-              aria-pressed={role === 'instructor'}
-              onClick={() => setRole('instructor')}
-            >
-              Instructor
-            </button>
           </div>
 
           <button type="submit" className="btn primary auth-submit" disabled={submitting}>

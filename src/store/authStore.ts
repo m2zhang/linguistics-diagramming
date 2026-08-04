@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import {
+  applyPendingRole,
   fetchMe,
   login as apiLogin,
   logout as apiLogout,
@@ -33,7 +34,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
   refresh: async () => {
     try {
-      const user = await fetchMe();
+      // applyPendingRole is a no-op unless the user just came back from a
+      // Google signup where they'd picked "Instructor".
+      const user = await applyPendingRole(await fetchMe());
       set({ user, status: 'authenticated' });
       useUiStore.getState().setAppMode(user.role);
     } catch {

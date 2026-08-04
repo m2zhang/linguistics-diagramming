@@ -3,6 +3,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../store/authStore';
 import { TreeLogo } from '../components/icons';
 import { AuthLayout } from '../components/layout/AuthLayout';
+import { GoogleButton } from './GoogleButton';
 
 export function LoginScreen() {
   const login = useAuthStore((s) => s.login);
@@ -46,6 +47,8 @@ export function LoginScreen() {
         <p className="auth-subtitle">Welcome back to SyntaxTree.</p>
 
         {error && <div className="auth-error">{error}</div>}
+
+        <GoogleButton label="Sign in with Google" />
 
         <form onSubmit={onSubmit}>
           <div className="auth-field">

@@ -42,6 +42,16 @@ export function MaterialUpload({ lectureId, canManage }: { lectureId: string; ca
     }
   };
 
+  // The bucket is private, so the URL has to be minted on demand rather than
+  // living in an href.
+  const onDownload = async (materialId: string) => {
+    try {
+      window.open(await materialDownloadUrl(materialId), '_blank', 'noopener,noreferrer');
+    } catch {
+      toast('Could not open that file', 'error');
+    }
+  };
+
   const onDelete = async (materialId: string) => {
     try {
       await deleteMaterial(materialId);
@@ -68,11 +78,9 @@ export function MaterialUpload({ lectureId, canManage }: { lectureId: string; ca
             <span className="shrink-0 text-xs text-text-faint">{formatSize(m.sizeBytes)}</span>
           </div>
           <div className="flex shrink-0 items-center gap-1">
-            <a href={materialDownloadUrl(m.id)} target="_blank" rel="noreferrer">
-              <Button variant="ghost" size="sm" title="Download">
-                <Download size={14} />
-              </Button>
-            </a>
+            <Button variant="ghost" size="sm" title="Download" onClick={() => onDownload(m.id)}>
+              <Download size={14} />
+            </Button>
             {canManage && (
               <Button variant="destructive" size="sm" title="Delete" onClick={() => onDelete(m.id)}>
                 <Trash2 size={14} />
