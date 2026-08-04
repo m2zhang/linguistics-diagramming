@@ -21,6 +21,7 @@ const createAssignmentSchema = z
     templateContent: projectStateSchema.optional(),
     dueAt: z.string().datetime().optional().nullable(),
     lectureId: z.string().uuid().optional().nullable(),
+    maxGrade: z.number().min(0).max(1000).optional().nullable(),
   })
   .refine((v) => v.mode !== 'template' || v.templateContent !== undefined, {
     message: 'templateContent is required when mode is "template"',
@@ -38,12 +39,12 @@ assignmentsRouter.post('/courses/:courseId/assignments', async (req, res) => {
     res.status(400).json({ error: parsed.error.issues[0]?.message ?? 'invalid request' });
     return;
   }
-  const { title, instructions, mode, templateContent, dueAt, lectureId } = parsed.data;
+  const { title, instructions, mode, templateContent, dueAt, lectureId, maxGrade } = parsed.data;
 
   const { rows } = await pool.query(
-    `INSERT INTO assignments (course_id, lecture_id, title, instructions, mode, template_content, due_at)
-     VALUES ($1, $2, $3, $4, $5, $6, $7)
-     RETURNING id, course_id, lecture_id, title, instructions, mode, template_content, due_at, created_at`,
+    `INSERT INTO assignments (course_id, lecture_id, title, instructions, mode, template_content, due_at, max_grade)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+     RETURNING id, course_id, lecture_id, title, instructions, mode, template_content, due_at, max_grade, created_at`,
     [
       courseId,
       lectureId ?? null,
@@ -52,6 +53,7 @@ assignmentsRouter.post('/courses/:courseId/assignments', async (req, res) => {
       mode,
       mode === 'template' ? JSON.stringify(templateContent) : null,
       dueAt ?? null,
+      maxGrade ?? null,
     ],
   );
   res.status(201).json(toAssignmentJson(rows[0]));
@@ -64,7 +66,7 @@ assignmentsRouter.get('/courses/:courseId/assignments', async (req, res) => {
     return;
   }
   const { rows } = await pool.query(
-    `SELECT id, course_id, lecture_id, title, instructions, mode, template_content, due_at, created_at
+    `SELECT id, course_id, lecture_id, title, instructions, mode, template_content, due_at, max_grade, created_at
      FROM assignments WHERE course_id = $1 ORDER BY due_at ASC NULLS LAST, created_at ASC`,
     [courseId],
   );
@@ -78,7 +80,7 @@ assignmentsRouter.get('/assignments/:id', async (req, res) => {
     return;
   }
   const { rows } = await pool.query(
-    `SELECT id, course_id, lecture_id, title, instructions, mode, template_content, due_at, created_at
+    `SELECT id, course_id, lecture_id, title, instructions, mode, template_content, due_at, max_grade, created_at
      FROM assignments WHERE id = $1`,
     [assignmentId],
   );
@@ -94,6 +96,7 @@ const patchAssignmentSchema = z.object({
   title: z.string().trim().min(1).max(200).optional(),
   instructions: z.string().trim().max(20000).nullable().optional(),
   dueAt: z.string().datetime().nullable().optional(),
+  maxGrade: z.number().min(0).max(1000).nullable().optional(),
 });
 
 assignmentsRouter.patch('/assignments/:id', async (req, res) => {
@@ -107,15 +110,16 @@ assignmentsRouter.patch('/assignments/:id', async (req, res) => {
     res.status(400).json({ error: parsed.error.issues[0]?.message ?? 'invalid request' });
     return;
   }
-  const { title, instructions, dueAt } = parsed.data;
+  const { title, instructions, dueAt, maxGrade } = parsed.data;
 
   const { rows } = await pool.query(
     `UPDATE assignments SET
        title = COALESCE($2, title),
        instructions = CASE WHEN $3::boolean THEN $4 ELSE instructions END,
-       due_at = CASE WHEN $5::boolean THEN $6 ELSE due_at END
+       due_at = CASE WHEN $5::boolean THEN $6 ELSE due_at END,
+       max_grade = CASE WHEN $7::boolean THEN $8 ELSE max_grade END
      WHERE id = $1
-     RETURNING id, course_id, lecture_id, title, instructions, mode, template_content, due_at, created_at`,
+     RETURNING id, course_id, lecture_id, title, instructions, mode, template_content, due_at, max_grade, created_at`,
     [
       assignmentId,
       title ?? null,
@@ -123,6 +127,8 @@ assignmentsRouter.patch('/assignments/:id', async (req, res) => {
       instructions ?? null,
       dueAt !== undefined,
       dueAt ?? null,
+      maxGrade !== undefined,
+      maxGrade ?? null,
     ],
   );
   res.json(toAssignmentJson(rows[0]));
@@ -147,6 +153,7 @@ function toAssignmentJson(row: {
   mode: 'blank' | 'template';
   template_content: unknown;
   due_at: Date | null;
+  max_grade: number | null;
   created_at: Date;
 }) {
   return {
@@ -158,6 +165,7 @@ function toAssignmentJson(row: {
     mode: row.mode,
     templateContent: row.template_content,
     dueAt: row.due_at,
+    maxGrade: row.max_grade !== null ? Number(row.max_grade) : null,
     createdAt: row.created_at,
   };
 }

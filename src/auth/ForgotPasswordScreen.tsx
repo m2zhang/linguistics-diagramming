@@ -1,6 +1,7 @@
 import { FormEvent, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { TreeLogo } from '../components/icons';
+import { AuthLayout } from '../components/layout/AuthLayout';
 
 export function ForgotPasswordScreen() {
   const [email, setEmail] = useState('');
@@ -41,7 +42,7 @@ export function ForgotPasswordScreen() {
   };
 
   return (
-    <div className="auth-screen">
+    <AuthLayout>
       <div className="auth-card">
         <div className="auth-title">
           <TreeLogo style={{ width: 20, height: 20, verticalAlign: 'middle', marginRight: 8 }} />
@@ -85,6 +86,6 @@ export function ForgotPasswordScreen() {
           Remember your password? <Link to="/login">Sign in</Link>
         </div>
       </div>
-    </div>
+    </AuthLayout>
   );
 }

@@ -1,12 +1,4 @@
-.auth-screen {
-  min-height: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: var(--bg);
-  padding: 24px;
-}
-
+/* .auth-screen removed in favor of AuthLayout component */
 .auth-card {
   width: 100%;
   max-width: 380px;

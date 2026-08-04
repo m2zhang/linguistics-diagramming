@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../store/authStore';
 import type { Role } from '../data/authClient';
 import { TreeLogo } from '../components/icons';
+import { AuthLayout } from '../components/layout/AuthLayout';
 
 export function SignupScreen() {
   const signup = useAuthStore((s) => s.signup);
@@ -30,7 +31,7 @@ export function SignupScreen() {
   };
 
   return (
-    <div className="auth-screen">
+    <AuthLayout>
       <div className="auth-card">
         <div className="auth-title">
           <TreeLogo style={{ width: 20, height: 20, verticalAlign: 'middle', marginRight: 8 }} />
@@ -104,6 +105,6 @@ export function SignupScreen() {
           Already have an account? <Link to="/login">Sign in</Link>
         </div>
       </div>
-    </div>
+    </AuthLayout>
   );
 }

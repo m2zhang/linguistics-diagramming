@@ -10,7 +10,7 @@ import { TreeCanvas } from './components/TreeCanvas';
 import { SaveToLectureBanner } from './components/lecture/SaveToLectureBanner';
 import { CreateAssignmentBanner } from './components/assignment/CreateAssignmentBanner';
 import { AssignmentWorkBanner } from './components/assignment/AssignmentWorkBanner';
-import { GradeBanner } from './components/assignment/GradeBanner';
+import { GradingPanel } from './components/assignment/GradingPanel';
 import { usePersistence } from './hooks/usePersistence';
 import { useUiStore } from './store/uiStore';
 
@@ -19,17 +19,21 @@ export default function App() {
   const sidebarOpen = useUiStore((s) => s.sidebarOpen);
   const rightpaneOpen = useUiStore((s) => s.rightpaneOpen);
   const appMode = useUiStore((s) => s.appMode);
+  
+  // Detect if we are in grading mode
+  const searchParams = new URLSearchParams(window.location.search);
+  const isGrading = !!searchParams.get('grade');
 
   let gridCols = '';
-  if (sidebarOpen) gridCols += '244px ';
+  if (sidebarOpen && !isGrading) gridCols += '244px ';
   gridCols += '1fr';
-  if (rightpaneOpen) gridCols += ' 340px';
+  if (rightpaneOpen || isGrading) gridCols += ' 340px';
 
   return (
     <div className="app">
       <Toolbar />
       <div className="layout" style={{ gridTemplateColumns: gridCols }}>
-        {sidebarOpen && (
+        {sidebarOpen && !isGrading && (
           <aside className="sidebar">
             <NodeLibrary />
             <SymbolLibrary />
@@ -42,14 +46,19 @@ export default function App() {
           <SaveToLectureBanner />
           <CreateAssignmentBanner />
           <AssignmentWorkBanner />
-          <GradeBanner />
         </main>
 
-        {rightpaneOpen && (
-          <aside className="rightpane">
-            <NodeInspector />
-            <BracketEditor />
-            {appMode === 'instructor' && <LatexOutput />}
+        {(rightpaneOpen || isGrading) && (
+          <aside className="rightpane flex flex-col">
+            {isGrading ? (
+              <GradingPanel />
+            ) : (
+              <>
+                <NodeInspector />
+                <BracketEditor />
+                {appMode === 'instructor' && <LatexOutput />}
+              </>
+            )}
           </aside>
         )}
       </div>

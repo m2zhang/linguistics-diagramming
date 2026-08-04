@@ -21,19 +21,17 @@ export function DashboardSidebar({ view, onChange }: { view: DashboardView; onCh
   return (
     <aside
       className={cn(
-        'flex shrink-0 flex-col border-r border-border bg-bg-panel py-4 transition-[width]',
+        'relative flex shrink-0 flex-col border-r border-border bg-bg-panel py-6 transition-[width]',
         collapsed ? 'w-16' : 'w-64',
       )}
     >
-      <div className={cn('mb-2 flex px-3', collapsed ? 'justify-center' : 'justify-end')}>
-        <button
-          title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-          onClick={() => setCollapsed((c) => !c)}
-          className="flex h-8 w-8 items-center justify-center rounded-full text-text-dim transition-colors hover:bg-bg-input hover:text-text"
-        >
-          {collapsed ? <PanelLeftOpen size={16} /> : <PanelLeftClose size={16} />}
-        </button>
-      </div>
+      <button
+        title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+        onClick={() => setCollapsed((c) => !c)}
+        className="absolute -right-3 top-1/2 -translate-y-1/2 flex h-6 w-6 items-center justify-center rounded-full border border-border bg-bg-elevated text-text-dim shadow-sm transition-colors hover:bg-accent hover:text-white hover:border-accent z-10"
+      >
+        {collapsed ? <PanelLeftOpen size={14} /> : <PanelLeftClose size={14} />}
+      </button>
 
       <nav>
         <ul className={cn('flex flex-col gap-0.5 list-none', collapsed ? 'px-2' : 'px-3')}>

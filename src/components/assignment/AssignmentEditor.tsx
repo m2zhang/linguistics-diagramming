@@ -22,6 +22,7 @@ export interface PendingAssignment {
   title: string;
   instructions?: string;
   dueAt?: string | null;
+  maxGrade?: number | null;
 }
 export const PENDING_ASSIGNMENT_KEY = 'syntaxtree.pendingAssignment';
 
@@ -36,6 +37,7 @@ export function AssignmentEditorDialog({
   const [title, setTitle] = useState('');
   const [instructions, setInstructions] = useState('');
   const [dueDate, setDueDate] = useState('');
+  const [maxGrade, setMaxGrade] = useState('');
   const [mode, setMode] = useState<AssignmentMode>('blank');
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -58,6 +60,7 @@ export function AssignmentEditorDialog({
         title,
         instructions: instructions.trim() || undefined,
         dueAt: dueAtIso,
+        maxGrade: maxGrade ? Number(maxGrade) : null,
       };
       sessionStorage.setItem(PENDING_ASSIGNMENT_KEY, JSON.stringify(pending));
       setOpen(false);
@@ -72,12 +75,14 @@ export function AssignmentEditorDialog({
         instructions: instructions.trim() || undefined,
         mode: 'blank',
         dueAt: dueAtIso,
+        maxGrade: maxGrade ? Number(maxGrade) : null,
       });
       onCreated(assignment);
       setOpen(false);
       setTitle('');
       setInstructions('');
       setDueDate('');
+      setMaxGrade('');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not create assignment');
     } finally {
@@ -127,6 +132,10 @@ export function AssignmentEditorDialog({
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="assignment-due">Due date (optional)</Label>
             <Input id="assignment-due" type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} />
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="assignment-max-grade">Total Points / Max Grade (optional)</Label>
+            <Input id="assignment-max-grade" type="number" min="0" step="0.5" value={maxGrade} onChange={(e) => setMaxGrade(e.target.value)} placeholder="e.g. 100" />
           </div>
 
           <div className="flex flex-col gap-1.5">

@@ -1,6 +1,7 @@
 import { ReactNode, useEffect } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { useAuthStore } from '../store/authStore';
+import { AuthLayout } from '../components/layout/AuthLayout';
 
 /** Wraps any route tree that requires a signed-in user. Redirects to /login
  *  (preserving the attempted location) when the session check fails. */
@@ -18,9 +19,14 @@ export function AuthGate({ children }: { children: ReactNode }) {
 
   if (status === 'loading') {
     return (
-      <div className="auth-screen">
-        <div className="auth-spinner" aria-label="Loading" />
-      </div>
+      <AuthLayout>
+        <div className="flex flex-col items-center justify-center space-y-6 py-12">
+          <div className="h-10 w-10 animate-spin rounded-full border-4 border-border border-t-accent" />
+          <p className="font-[family-name:var(--font-display)] text-sm font-semibold tracking-wide text-text-dim animate-pulse">
+            Loading session...
+          </p>
+        </div>
+      </AuthLayout>
     );
   }
 

@@ -1,6 +1,7 @@
 import { FormEvent, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { TreeLogo } from '../components/icons';
+import { AuthLayout } from '../components/layout/AuthLayout';
 
 export function ResetPasswordScreen() {
   const navigate = useNavigate();
@@ -57,7 +58,7 @@ export function ResetPasswordScreen() {
   }
 
   return (
-    <div className="auth-screen">
+    <AuthLayout>
       <div className="auth-card">
         <div className="auth-title">
           <TreeLogo style={{ width: 20, height: 20, verticalAlign: 'middle', marginRight: 8 }} />
@@ -102,6 +103,6 @@ export function ResetPasswordScreen() {
           <Link to="/login">Back to Sign in</Link>
         </div>
       </div>
-    </div>
+    </AuthLayout>
   );
 }

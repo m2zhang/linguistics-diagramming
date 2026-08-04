@@ -38,6 +38,7 @@ export function CreateAssignmentBanner() {
         mode: 'template',
         templateContent: currentProjectState(tree),
         dueAt: pending.dueAt,
+        maxGrade: pending.maxGrade,
       });
       sessionStorage.removeItem(PENDING_ASSIGNMENT_KEY);
       toast('Assignment created', 'success');

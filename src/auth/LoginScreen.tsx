@@ -2,6 +2,7 @@ import { FormEvent, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../store/authStore';
 import { TreeLogo } from '../components/icons';
+import { AuthLayout } from '../components/layout/AuthLayout';
 
 export function LoginScreen() {
   const login = useAuthStore((s) => s.login);
@@ -36,7 +37,7 @@ export function LoginScreen() {
   };
 
   return (
-    <div className="auth-screen">
+    <AuthLayout>
       <div className="auth-card">
         <div className="auth-title">
           <TreeLogo style={{ width: 20, height: 20, verticalAlign: 'middle', marginRight: 8 }} />
@@ -82,6 +83,6 @@ export function LoginScreen() {
           No account yet? <Link to="/signup">Create one</Link>
         </div>
       </div>
-    </div>
+    </AuthLayout>
   );
 }

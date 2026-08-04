@@ -11,6 +11,7 @@ export interface Assignment {
   mode: AssignmentMode;
   templateContent: ProjectState | null;
   dueAt: string | null;
+  maxGrade: number | null;
   createdAt: string;
 }
 
@@ -53,6 +54,7 @@ export function createAssignment(
     templateContent?: ProjectState;
     dueAt?: string | null;
     lectureId?: string | null;
+    maxGrade?: number | null;
   },
 ) {
   return request<Assignment>(`/courses/${courseId}/assignments`, { method: 'POST', body: JSON.stringify(input) });
@@ -60,7 +62,7 @@ export function createAssignment(
 
 export function updateAssignment(
   assignmentId: string,
-  input: { title?: string; instructions?: string | null; dueAt?: string | null },
+  input: { title?: string; instructions?: string | null; dueAt?: string | null; maxGrade?: number | null },
 ) {
   return request<Assignment>(`/assignments/${assignmentId}`, { method: 'PATCH', body: JSON.stringify(input) });
 }

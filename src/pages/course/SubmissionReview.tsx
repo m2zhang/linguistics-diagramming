@@ -164,7 +164,13 @@ export function SubmissionReview() {
                 </TableCell>
                 <TableCell className="text-text-dim">{new Date(s.submittedAt).toLocaleString()}</TableCell>
                 <TableCell>
-                  {s.grade !== null ? <Badge variant="success">{s.grade}</Badge> : <Badge variant="secondary">Ungraded</Badge>}
+                  {s.grade !== null ? (
+                    <Badge variant="success">
+                      {s.grade} {assignment?.maxGrade ? `/ ${assignment.maxGrade}` : ''}
+                    </Badge>
+                  ) : (
+                    <Badge variant="secondary">Ungraded</Badge>
+                  )}
                 </TableCell>
                 <TableCell>
                   <div className="flex items-center justify-end gap-1.5">

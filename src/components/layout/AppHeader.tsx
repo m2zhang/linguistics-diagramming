@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { ChevronDown, GitBranch, LogOut, Moon, Sun, User } from 'lucide-react';
+import { ChevronDown, LogOut, Moon, Sun, User } from 'lucide-react';
 import { TreeLogo } from '../icons';
 import { ProfileAvatar } from '../ui/avatar';
 import { Button } from '../ui/button';
@@ -36,15 +36,7 @@ export function AppHeader({ children }: { children?: React.ReactNode }) {
         SyntaxTree
       </Link>
       <div className="flex-1">{children}</div>
-      {user && (
-        <Link
-          to="/editor"
-          title="Open the free-form tree canvas"
-          className="inline-flex items-center gap-1.5 rounded-full border border-accent bg-bg-elevated px-3 py-1.5 text-xs font-semibold text-accent no-underline transition-colors hover:bg-accent hover:text-white"
-        >
-          <GitBranch size={14} /> Canvas
-        </Link>
-      )}
+
       <Button
         variant="ghost"
         size="sm"

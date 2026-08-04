@@ -11,7 +11,10 @@ const EMPTY_MESSAGE: Record<DashboardView, string> = {
   archived: "You haven't archived any courses.",
 };
 
+import { useAuthStore } from '../store/authStore';
+
 export function InstructorDashboard() {
+  const user = useAuthStore((s) => s.user);
   const [courses, setCourses] = useState<Course[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [view, setView] = useState<DashboardView>('mine');
@@ -38,14 +41,28 @@ export function InstructorDashboard() {
       <div className="flex min-h-0 flex-1">
         <DashboardSidebar view={view} onChange={setView} />
         <main className="flex-1 overflow-y-auto px-8 py-6">
-          <div className="mb-6 flex items-center justify-between">
-            <div>
-              <h1 className="font-[family-name:var(--font-display)] text-2xl font-bold">
-                {view === 'mine' ? 'Your courses' : view === 'favorites' ? 'Favorite courses' : 'Archived courses'}
-              </h1>
-              <p className="text-sm text-text-dim">Manage lectures, materials, and assignments for each course.</p>
+          {/* Hero Banner */}
+          <div className="mb-8 relative overflow-hidden rounded-2xl bg-gradient-to-br from-accent to-accent-strong p-8 text-white shadow-lg">
+            <div className="absolute top-[-50%] right-[-10%] w-[60%] h-[200%] rounded-full bg-white/10 blur-3xl mix-blend-overlay" />
+            <div className="relative z-10 flex items-center justify-between">
+              <div>
+                <h1 className="font-[family-name:var(--font-display)] text-3xl font-extrabold tracking-tight mb-2">
+                  Welcome back, {user?.displayName}!
+                </h1>
+                <p className="text-white/90 text-sm">
+                  {view === 'mine' ? 'Manage lectures, materials, and assignments for your courses.' : view === 'favorites' ? 'Your pinned favorite courses.' : 'Your archived courses.'}
+                </p>
+              </div>
+              <div className="shrink-0">
+                <CreateCourseDialog onCreated={(course) => setCourses((prev) => [course, ...(prev ?? [])])} />
+              </div>
             </div>
-            <CreateCourseDialog onCreated={(course) => setCourses((prev) => [course, ...(prev ?? [])])} />
+          </div>
+
+          <div className="mb-4 flex items-center justify-between">
+            <h2 className="font-[family-name:var(--font-display)] text-xl font-bold text-text">
+              {view === 'mine' ? 'Your courses' : view === 'favorites' ? 'Favorite courses' : 'Archived courses'}
+            </h2>
           </div>
 
           {error && <p className="text-sm text-danger">{error}</p>}

@@ -5,6 +5,7 @@ import { Card, CardHeader, CardTitle } from '../../components/ui/card';
 import { Badge } from '../../components/ui/badge';
 import { AssignmentEditorDialog } from '../../components/assignment/AssignmentEditor';
 import { listAssignments, type Assignment } from '../../data/assignments';
+import { courseColorHex } from '../../lib/courseColors';
 import { useUiStore } from '../../store/uiStore';
 import type { CourseOutletContext } from './CourseShell';
 
@@ -56,12 +57,16 @@ export function CourseAssignments() {
         {assignments?.map((a) => (
           <Card
             key={a.id}
-            className="cursor-pointer transition-shadow hover:shadow-[0_8px_30px_rgba(40,50,90,0.18)]"
+            className="cursor-pointer transition-all hover:-translate-y-0.5 hover:shadow-[0_12px_40px_rgba(40,50,90,0.12)] border-l-4 overflow-hidden rounded-xl bg-bg-elevated/80 backdrop-blur-sm"
+            style={{ borderLeftColor: courseColorHex(course.color) }}
             onClick={() => navigate(a.id)}
           >
-            <CardHeader className="flex-row items-center gap-3 space-y-0">
-              <div className="flex h-9 w-9 items-center justify-center rounded-[var(--radius-sm)] bg-accent-soft text-accent">
-                <ClipboardList size={16} />
+            <CardHeader className="flex-row items-center gap-4 space-y-0 p-5">
+              <div 
+                className="flex h-12 w-12 items-center justify-center rounded-2xl bg-accent-soft text-accent shadow-sm"
+                style={{ backgroundColor: `${courseColorHex(course.color)}20`, color: courseColorHex(course.color) }}
+              >
+                <ClipboardList size={20} />
               </div>
               <div className="flex-1">
                 <CardTitle>{a.title}</CardTitle>
