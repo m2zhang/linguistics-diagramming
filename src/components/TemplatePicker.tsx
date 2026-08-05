@@ -10,7 +10,7 @@ export function TemplatePicker() {
     <div className="section">
       <div className="panel-title">Templates</div>
       <div className="template-list">
-        {TEMPLATES.map((t) => (
+        {TEMPLATES.map((t, index) => (
           <button
             key={t.id}
             className="template"
@@ -21,6 +21,7 @@ export function TemplatePicker() {
           >
             <div className="t-name">{t.name}</div>
             <div className="t-desc">{t.description}</div>
+            <span className="shortcut-hint">F{index + 4}</span>
           </button>
         ))}
       </div>
