@@ -156,6 +156,7 @@ export function TreeCanvas() {
   const [view, setView] = useState<ViewState>({ scale: 1, tx: 0, ty: 0 });
   const [tool, setTool] = useState<Tool>('select');
   const [strokeColor, setStrokeColor] = useState('var(--danger)');
+  const [customStrokeColor, setCustomStrokeColor] = useState('#dc2626'); //customStrokeColor to remember the latest color changes
   const [panning, setPanning] = useState(false);
   const [liveBox, setLiveBox] = useState<{ x: number; y: number; w: number; h: number } | null>(null);
   const boxStart = useRef<{ x: number; y: number } | null>(null);
@@ -1126,13 +1127,32 @@ export function TreeCanvas() {
                 { name: 'Dark', value: 'var(--text)' },
               ].map((c) => (
                 <button
+                  type="button"
                   key={c.value}
                   className={`color-dot${strokeColor === c.value ? ' active' : ''}`}
                   style={{ backgroundColor: c.value === 'var(--text)' ? 'var(--text)' : c.value }}
                   title={c.name}
+                  aria-label={`Use ${c.name.toLowerCase()}`}
                   onClick={() => setStrokeColor(c.value)}
                 />
               ))}
+              {(tool === 'draw' || tool === 'highlight') && (
+                <label
+                  className={`color-wheel${strokeColor === customStrokeColor ? ' active' : ''}`}
+                  style={{ '--selected-color': customStrokeColor } as React.CSSProperties}
+                  title="Choose a custom color"
+                >
+                  <input
+                    type="color"
+                    value={customStrokeColor}
+                    aria-label={`Choose ${tool === 'draw' ? 'pen' : 'highlighter'} color`}
+                    onChange={(e) => {
+                      setCustomStrokeColor(e.target.value);
+                      setStrokeColor(e.target.value);
+                    }}
+                  />
+                </label>
+              )}
             </div>
           </>
         )}
