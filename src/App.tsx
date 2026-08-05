@@ -8,10 +8,13 @@ import { ToastHost } from './components/ToastHost';
 import { Toolbar } from './components/Toolbar';
 import { TreeCanvas } from './components/TreeCanvas';
 import { useCloudSync } from './hooks/useCloudSync';
+import { useLibraryShortcuts } from './hooks/useLibraryShortcuts';
 import { useUiStore } from './store/uiStore';
 
 export default function App() {
   useCloudSync();
+  useLibraryShortcuts();
+
   const sidebarOpen = useUiStore((s) => s.sidebarOpen);
   const rightpaneOpen = useUiStore((s) => s.rightpaneOpen);
 

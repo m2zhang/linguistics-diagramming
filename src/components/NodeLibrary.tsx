@@ -10,7 +10,7 @@ function ChevronLeftIcon() {
   );
 }
 
-interface Preset {
+export interface Preset {
   id: string;
   name: string;
   desc: string;
@@ -26,7 +26,7 @@ const node = (label: string, children: TreeNode[] = []): TreeNode => ({
   children,
 });
 
-const PRESETS: Preset[] = [
+export const PRESETS: Preset[] = [
   {
     id: 'down',
     name: 'Node Down',
@@ -71,7 +71,7 @@ export function NodeLibrary() {
         </button>
       </div>
       <div className="preset-grid">
-        {PRESETS.map((p) => (
+        {PRESETS.map((p, index) => (
           <div
             key={p.id}
             className="preset"
@@ -83,6 +83,7 @@ export function NodeLibrary() {
               <div className="preset-name">{p.name}</div>
               <div className="preset-desc">{p.desc}</div>
             </div>
+            <span className="shortcut-hint">F{index + 1}</span>
           </div>
         ))}
       </div>
