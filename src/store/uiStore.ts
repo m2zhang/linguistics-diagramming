@@ -7,15 +7,21 @@ export interface Toast {
   kind: ToastKind;
 }
 
+export type AppMode = 'student' | 'instructor';
+
 interface UiState {
   theme: 'dark' | 'light';
   toasts: Toast[];
   validatorOn: boolean;
   sidebarOpen: boolean;
   rightpaneOpen: boolean;
+  /** Mirrors the signed-in user's role (see src/store/authStore.ts) — not an
+   *  independent user-facing toggle. Gates the editor's advanced tools. */
+  appMode: AppMode;
   toggleTheme: () => void;
   toggleSidebar: () => void;
   toggleRightpane: () => void;
+  setAppMode: (mode: AppMode) => void;
   toast: (message: string, kind?: ToastKind) => void;
   dismissToast: (id: number) => void;
 }
@@ -28,6 +34,7 @@ export const useUiStore = create<UiState>((set) => ({
   validatorOn: false,
   sidebarOpen: true,
   rightpaneOpen: true,
+  appMode: 'student',
 
   toggleTheme: () =>
     set((s) => {
@@ -38,6 +45,7 @@ export const useUiStore = create<UiState>((set) => ({
 
   toggleSidebar: () => set((s) => ({ sidebarOpen: !s.sidebarOpen })),
   toggleRightpane: () => set((s) => ({ rightpaneOpen: !s.rightpaneOpen })),
+  setAppMode: (appMode) => set({ appMode }),
 
   toast: (message, kind = 'info') =>
     set((s) => {

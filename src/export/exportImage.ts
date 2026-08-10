@@ -12,7 +12,7 @@ function triggerDownload(blobUrl: string, filename: string) {
 }
 
 /** Rasterize the tree to a PNG at the given pixel scale and download it. */
-export async function exportPng(tree: TreeNode, scale = 2): Promise<void> {
+export async function exportPng(tree: TreeNode, scale = 2, filename = 'syntax-tree.png'): Promise<void> {
   const { svg, width, height } = buildExportSvg(tree, { background: '#ffffff' });
   const source = serializeSvg(svg);
   const svgBlob = new Blob([source], { type: 'image/svg+xml;charset=utf-8' });
@@ -47,7 +47,7 @@ export async function exportPng(tree: TreeNode, scale = 2): Promise<void> {
       new Blob([withState.buffer as ArrayBuffer], { type: 'image/png' }),
     );
     try {
-      triggerDownload(pngUrl, 'syntax-tree.png');
+      triggerDownload(pngUrl, filename);
     } finally {
       setTimeout(() => URL.revokeObjectURL(pngUrl), 1000);
     }
@@ -57,11 +57,11 @@ export async function exportPng(tree: TreeNode, scale = 2): Promise<void> {
 }
 
 /** Download the raw vector SVG file. */
-export function exportSvgFile(tree: TreeNode): void {
+export function exportSvgFile(tree: TreeNode, filename = 'syntax-tree.svg'): void {
   const { svg } = buildExportSvg(tree, { background: '#ffffff' });
   const source = serializeSvg(svg);
   const blob = new Blob([source], { type: 'image/svg+xml;charset=utf-8' });
   const url = URL.createObjectURL(blob);
-  triggerDownload(url, 'syntax-tree.svg');
+  triggerDownload(url, filename);
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }

@@ -151,10 +151,22 @@ export function TreeCanvas() {
   const redo = useTreeStore((s) => s.redo);
   const toast = useUiStore((s) => s.toast);
 
+  const appMode = useUiStore((s) => s.appMode);
+
   const wrapRef = useRef<HTMLDivElement>(null);
   const svgEl = useRef<SVGSVGElement>(null);
   const [view, setView] = useState<ViewState>({ scale: 1, tx: 0, ty: 0 });
   const [tool, setTool] = useState<Tool>('select');
+
+  // Draw/box/arrow are instructor-only tools (see toolButton gating below).
+  // If a mode switch happens mid-session while one of them is selected
+  // (e.g. an instructor previewing as student), fall back to 'select' so
+  // the canvas never ends up in a tool that no longer has a button for it.
+  useEffect(() => {
+    if (appMode === 'student' && (tool === 'draw' || tool === 'box' || tool === 'arrow')) {
+      setTool('select');
+    }
+  }, [appMode, tool]);
   const [strokeColor, setStrokeColor] = useState('var(--danger)');
   const [customStrokeColor, setCustomStrokeColor] = useState('#dc2626'); //customStrokeColor to remember the latest color changes
   const [panning, setPanning] = useState(false);
@@ -1108,14 +1120,14 @@ export function TreeCanvas() {
       {/* Tool palette: top-left of the canvas */}
       <div className="canvas-toolbar tools">
         {toolButton('select', <CursorIcon />, 'Select / pan (drag canvas, double-click to rename)')}
-        {toolButton('draw', <PenIcon />, 'Draw freehand')}
-        {toolButton('highlight', <HighlighterIcon/>,'Highlight')}
+        {appMode === 'instructor' && toolButton('draw', <PenIcon />, 'Draw freehand')}
+        {toolButton('highlight', <HighlighterIcon />, 'Highlight')}
         {toolButton('text', <TextIcon />, 'Add text note (click on canvas)')}
-        {toolButton('arrow', <ArrowIcon />, 'Draw connector arrow between elements')}
-        {toolButton('box', <BoxIcon />, 'Draw box around elements')}
+        {appMode === 'instructor' && toolButton('arrow', <ArrowIcon />, 'Draw connector arrow between elements')}
+        {appMode === 'instructor' && toolButton('box', <BoxIcon />, 'Draw box around elements')}
         {toolButton('erase', <EraserIcon />, 'Eraser (click a drawing, note, box, or arrow)')}
 
-        {(tool === 'draw' || tool === 'highlight'|| tool === 'text' || tool === 'box' || tool === 'arrow' ) && (
+        {(tool === 'draw' || tool === 'highlight' || tool === 'text' || tool === 'box' || tool === 'arrow') && (
           <>
             <span className="toolbar-divider" />
             <div className="color-picker">
@@ -1164,27 +1176,29 @@ export function TreeCanvas() {
         <button className="btn icon ghost" title="Redo (Ctrl+Y)" disabled={!canRedo} onClick={redo}>
           <RedoIcon />
         </button>
-      {hasAnnotations && (
-        <>
-        <span className="toolbar-divider" />
-        <button
-          className="btn icon ghost"
-          title="Clear annotations without changing the tree"
-          aria-label="Clear annotations"
-          onClick={() => {
-            const confirmed = window.confirm(
-            'Clear all annotations? Your syntax tree will not be changed.',
-          );
-          if (confirmed) {
-            clearAnnotations();
-          }
-        }}
-        >
-        <ClearAnnotationsIcon />
-        </button>
-        </>
-      )}
-        {(annotations.notes.length > 0 || annotations.strokes.length > 0) && (
+
+        {hasAnnotations && (
+          <>
+            <span className="toolbar-divider" />
+            <button
+              className="btn icon ghost"
+              title="Clear annotations without changing the tree"
+              aria-label="Clear annotations"
+              onClick={() => {
+                const confirmed = window.confirm(
+                  'Clear all annotations? Your syntax tree will not be changed.',
+                );
+                if (confirmed) {
+                  clearAnnotations();
+                }
+              }}
+            >
+              <ClearAnnotationsIcon />
+            </button>
+          </>
+        )}
+
+        {appMode === 'instructor' && (annotations.notes.length > 0 || annotations.strokes.length > 0) && (
           <>
             <span className="toolbar-divider" />
             <button

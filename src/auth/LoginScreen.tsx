@@ -1,68 +1,103 @@
-import { useState } from 'react';
-import { signInWithGoogle } from './authClient';
-import { supabaseConfigured } from '../lib/supabase';
+import { FormEvent, useState } from 'react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { Eye, EyeOff } from 'lucide-react';
+import { useAuthStore } from '../store/authStore';
+import { TreeLogo } from '../components/icons';
+import { AuthLayout } from '../components/layout/AuthLayout';
+import { GoogleButton } from './GoogleButton';
 
-/** Full-screen sign-in gate shown when no user is authenticated. */
 export function LoginScreen() {
-  const [busy, setBusy] = useState(false);
+  const login = useAuthStore((s) => s.login);
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
 
-  async function handleGoogle() {
-    setBusy(true);
+  // Keep the query string: editor deep links carry the lecture/assignment
+  // context there (?saveToLecture=…&courseId=…), and dropping it silently
+  // sends the user to a blank canvas after signing in.
+  const attempted = (location.state as { from?: { pathname: string; search?: string; hash?: string } } | null)?.from;
+  const from = attempted
+    ? `${attempted.pathname}${attempted.search ?? ''}${attempted.hash ?? ''}`
+    : '/dashboard';
+
+  const onSubmit = async (e: FormEvent) => {
+    e.preventDefault();
     setError(null);
-    const { error } = await signInWithGoogle();
-    if (error) {
-      setError(error.message);
-      setBusy(false);
+    setSubmitting(true);
+    try {
+      await login(email, password);
+      navigate(from, { replace: true });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Login failed');
+    } finally {
+      setSubmitting(false);
     }
-    // On success the browser redirects to the OAuth provider, so no need to reset busy.
-  }
+  };
 
   return (
-    <div className="auth-screen">
+    <AuthLayout>
       <div className="auth-card">
-        <h1 className="auth-title">SyntaxTree</h1>
-        <p className="auth-tagline">Diagram linguistic structures. Sign in to save your trees.</p>
+        <div className="auth-title">
+          <TreeLogo style={{ width: 20, height: 20, verticalAlign: 'middle', marginRight: 8 }} />
+          Sign in
+        </div>
+        <p className="auth-subtitle">Welcome back to SyntaxTree.</p>
 
-        {supabaseConfigured ? (
-          <>
-            <button className="btn primary auth-provider-btn" onClick={handleGoogle} disabled={busy}>
-              <GoogleIcon />
-              {busy ? 'Redirecting…' : 'Sign in with Google'}
-            </button>
-            {error && <p className="auth-error">{error}</p>}
-          </>
-        ) : (
-          <p className="auth-error">
-            Supabase isn’t configured yet. Copy <code>.env.example</code> to{' '}
-            <code>.env.local</code>, fill in your project URL and anon key, then restart the dev
-            server.
-          </p>
-        )}
+        {error && <div className="auth-error">{error}</div>}
+
+        <GoogleButton label="Sign in with Google" />
+
+        <form onSubmit={onSubmit}>
+          <div className="auth-field">
+            <label htmlFor="login-email">Email</label>
+            <input
+              id="login-email"
+              type="email"
+              autoComplete="email"
+              required
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+            />
+          </div>
+          <div className="auth-field">
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+              <label htmlFor="login-password">Password</label>
+              <Link to="/forgot-password" style={{ fontSize: '0.85rem' }}>Forgot password?</Link>
+            </div>
+            <div className="auth-password-wrapper">
+              <input
+                id="login-password"
+                type={showPassword ? 'text' : 'password'}
+                autoComplete="current-password"
+                required
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+              />
+              <button
+                type="button"
+                className="auth-password-toggle"
+                onClick={() => setShowPassword((prev) => !prev)}
+                title={showPassword ? 'Hide password' : 'Show password'}
+              >
+                {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+              </button>
+            </div>
+          </div>
+
+          <button type="submit" className="btn primary auth-submit" disabled={submitting}>
+            {submitting ? 'Signing in…' : 'Sign in'}
+          </button>
+        </form>
+
+        <div className="auth-switch">
+          No account yet? <Link to="/signup">Sign up</Link>
+        </div>
       </div>
-    </div>
-  );
-}
-
-function GoogleIcon() {
-  return (
-    <svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true">
-      <path
-        fill="#4285F4"
-        d="M17.64 9.2c0-.64-.06-1.25-.16-1.84H9v3.48h4.84a4.14 4.14 0 0 1-1.8 2.72v2.26h2.92c1.7-1.57 2.68-3.88 2.68-6.62z"
-      />
-      <path
-        fill="#34A853"
-        d="M9 18c2.43 0 4.47-.8 5.96-2.18l-2.92-2.26c-.8.54-1.84.86-3.04.86-2.34 0-4.32-1.58-5.02-3.7H.96v2.34A9 9 0 0 0 9 18z"
-      />
-      <path
-        fill="#FBBC05"
-        d="M3.98 10.72a5.4 5.4 0 0 1 0-3.44V4.94H.96a9 9 0 0 0 0 8.12l3.02-2.34z"
-      />
-      <path
-        fill="#EA4335"
-        d="M9 3.58c1.32 0 2.5.46 3.44 1.35l2.58-2.58C13.46.9 11.42 0 9 0A9 9 0 0 0 .96 4.94l3.02 2.34C4.68 5.16 6.66 3.58 9 3.58z"
-      />
-    </svg>
+    </AuthLayout>
   );
 }
