@@ -1,6 +1,7 @@
 import { BracketEditor } from './components/BracketEditor';
 import { LatexOutput } from './components/LatexOutput';
 import { NodeInspector } from './components/NodeInspector';
+import { FeatureBundleLibrary } from './components/FeatureBundleLibrary';
 import { NodeLibrary } from './components/NodeLibrary';
 import { SymbolLibrary } from './components/SymbolLibrary';
 import { TemplatePicker } from './components/TemplatePicker';
@@ -42,6 +43,7 @@ export default function App() {
           <aside className="sidebar">
             <NodeLibrary />
             <SymbolLibrary />
+            <FeatureBundleLibrary />
             <TemplatePicker />
           </aside>
         )}

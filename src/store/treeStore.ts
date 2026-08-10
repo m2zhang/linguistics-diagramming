@@ -88,6 +88,8 @@ interface TreeState {
   addChild: (parentId: string, label?: string) => void;
   setNodeStyle: (ids: string[], patch: NodeStyle, coalesceKey?: string) => void;
   setNodeFeatures: (id: string, features: string[]) => void;
+  /** Append one feature to a node. Returns false when the node already had it. */
+  addNodeFeature: (id: string, feature: string) => boolean;
   attachPreset: (targetId: string, preset: TreeNode) => void;
   clear: () => void; //for clearing both annotations and tree
   clearAnnotations: () => void; //creating a separate one for just clearing annotations only
@@ -313,6 +315,19 @@ export const useTreeStore = create<TreeState>((set, get) => {
         if (tree === s.tree) return s;
         return { ...snapshot(s), tree };
       }),
+
+    // Separate from setNodeFeatures because the caller (a drop, a click in the
+    // bundle library) has one feature and no view of the node's current list,
+    // and needs to know whether anything actually changed so it can say so.
+    addNodeFeature: (id, feature) => {
+      const value = feature.trim();
+      if (!value) return false;
+      const node = findNode(get().tree, id);
+      if (!node) return false;
+      if ((node.features ?? []).includes(value)) return false;
+      get().setNodeFeatures(id, [...(node.features ?? []), value]);
+      return true;
+    },
 
     attachPreset: (targetId, preset) =>
       set((s) => {

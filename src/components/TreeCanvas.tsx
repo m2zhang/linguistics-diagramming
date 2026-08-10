@@ -13,6 +13,7 @@ import { useUiStore } from '../store/uiStore';
 import { drawingToTree, pointToSegment } from '../model/drawingToTree';
 import { sketchToTree } from '../vision/sketchToTree';
 import { effectiveStyle, FONT_STACKS, makeId } from '../model/types';
+import { FEATURE_DND_TYPE, featureColor, PEN_COLORS } from '../model/features';
 import {
   CursorIcon,
   EraserIcon,
@@ -146,6 +147,7 @@ export function TreeCanvas() {
   const removeAnnotation = useTreeStore((s) => s.removeAnnotation);
   const clearAnnotations = useTreeStore((s) => s.clearAnnotations);
   const applyDrawingResult = useTreeStore((s) => s.applyDrawingResult);
+  const addNodeFeature = useTreeStore((s) => s.addNodeFeature);
   const [recognizing, setRecognizing] = useState(false);
   const undo = useTreeStore((s) => s.undo);
   const redo = useTreeStore((s) => s.redo);
@@ -167,8 +169,10 @@ export function TreeCanvas() {
       setTool('select');
     }
   }, [appMode, tool]);
-  const [strokeColor, setStrokeColor] = useState('var(--danger)');
-  const [customStrokeColor, setCustomStrokeColor] = useState('#dc2626'); //customStrokeColor to remember the latest color changes
+  // Both defaults come from PEN_COLORS. They used to be --danger / #dc2626,
+  // which is now [+CASE]'s reserved tag red — a pen must never open on it.
+  const [strokeColor, setStrokeColor] = useState(PEN_COLORS[0].value);
+  const [customStrokeColor, setCustomStrokeColor] = useState('#ea580c'); //customStrokeColor to remember the latest color changes
   const [panning, setPanning] = useState(false);
   const [liveBox, setLiveBox] = useState<{ x: number; y: number; w: number; h: number } | null>(null);
   const boxStart = useRef<{ x: number; y: number } | null>(null);
@@ -597,22 +601,29 @@ export function TreeCanvas() {
     setEditingNote(null);
   };
 
-  // ----- Drag-and-drop preset onto a node -----
+  // ----- Drag-and-drop preset / symbol / feature onto a node -----
   const onNodeDragOver = (e: React.DragEvent, id: string) => {
     if (
       e.dataTransfer.types.includes('application/x-preset') ||
-      e.dataTransfer.types.includes('application/x-symbol')
+      e.dataTransfer.types.includes('application/x-symbol') ||
+      e.dataTransfer.types.includes(FEATURE_DND_TYPE)
     ) {
       e.preventDefault();
       setDropTarget(id);
     }
   };
   const onNodeDrop = (e: React.DragEvent, id: string) => {
+    // Features first: a symbol drop falls back to text/plain, so checking in
+    // the other order would rename the node instead of tagging it.
+    const rawFeature = e.dataTransfer.getData(FEATURE_DND_TYPE);
     const rawPreset = e.dataTransfer.getData('application/x-preset');
     const rawSymbol = e.dataTransfer.getData('application/x-symbol') || e.dataTransfer.getData('text/plain');
     setDropTarget(null);
     e.preventDefault();
-    if (rawPreset) {
+    if (rawFeature) {
+      if (addNodeFeature(id, rawFeature)) toast(`Added [${rawFeature}]`, 'success');
+      else toast(`Already tagged [${rawFeature}]`, 'info');
+    } else if (rawPreset) {
       try {
         const preset = JSON.parse(rawPreset);
         attachPreset(id, preset);
@@ -662,16 +673,25 @@ export function TreeCanvas() {
         // Allow dropping on empty canvas to seed/attach to root.
         if (
           e.dataTransfer.types.includes('application/x-preset') ||
-          e.dataTransfer.types.includes('application/x-symbol')
+          e.dataTransfer.types.includes('application/x-symbol') ||
+          e.dataTransfer.types.includes(FEATURE_DND_TYPE)
         ) {
           e.preventDefault();
         }
       }}
       onDrop={(e) => {
         if (dropTarget) return;
+        const rawFeature = e.dataTransfer.getData(FEATURE_DND_TYPE);
         const rawPreset = e.dataTransfer.getData('application/x-preset');
         const rawSymbol = e.dataTransfer.getData('application/x-symbol') || e.dataTransfer.getData('text/plain');
         e.preventDefault();
+
+        // A feature has to land on a node — there is nothing to attach it to
+        // out here, and silently dropping it would look like a bug.
+        if (rawFeature) {
+          toast('Drop a feature tag onto a node to attach it.', 'info');
+          return;
+        }
 
         if (rawPreset) {
           if (tree) {
@@ -791,6 +811,9 @@ export function TreeCanvas() {
                     fontSize={FEATURE_FONT_SIZE}
                     textAnchor="middle"
                     dominantBaseline="hanging"
+                    // Overrides the --text-dim fill from app.css. Inline rather
+                    // than a class so the same value is what export writes out.
+                    fill={featureColor(f)}
                   >
                     [{f}]
                   </text>
@@ -1131,13 +1154,7 @@ export function TreeCanvas() {
           <>
             <span className="toolbar-divider" />
             <div className="color-picker">
-              {[
-                { name: 'Red', value: 'var(--danger)' },
-                { name: 'Blue', value: 'var(--accent)' },
-                { name: 'Green', value: 'var(--success)' },
-                { name: 'Orange', value: 'var(--warning)' },
-                { name: 'Dark', value: 'var(--text)' },
-              ].map((c) => (
+              {PEN_COLORS.map((c) => (
                 <button
                   type="button"
                   key={c.value}

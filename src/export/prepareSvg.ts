@@ -7,6 +7,7 @@ import {
   PositionedNode,
 } from '../model/layout';
 import { effectiveStyle, FONT_STACKS, TreeNode } from '../model/types';
+import { featureColor } from '../model/features';
 import { useTreeStore } from '../store/treeStore';
 
 export interface PreparedSvg {
@@ -46,7 +47,6 @@ export function buildExportSvg(tree: TreeNode, opts?: { background?: string | nu
   const colInternal = cssVar('--node-internal', '#2f3a7a');
   const colLeaf = cssVar('--node-leaf', '#1d8a6a');
   const colConnector = cssVar('--connector', '#9aa1b8');
-  const colFeature = cssVar('--text-dim', '#5b6076');
 
   if (opts?.background) {
     const bg = document.createElementNS(NS, 'rect');
@@ -95,7 +95,9 @@ export function buildExportSvg(tree: TreeNode, opts?: { background?: string | nu
       feat.setAttribute('dominant-baseline', 'hanging');
       feat.setAttribute('font-size', String(FEATURE_FONT_SIZE));
       feat.setAttribute('font-family', FONT_STACKS.mono);
-      feat.setAttribute('fill', colFeature);
+      // Same resolver the canvas uses, so an exported tag is the colour the
+      // instructor saw. featureColor() always returns a hex.
+      feat.setAttribute('fill', featureColor(f));
       feat.textContent = `[${f}]`;
       svg.appendChild(feat);
     });

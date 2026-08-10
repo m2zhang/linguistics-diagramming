@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { effectiveStyle, FONT_LABELS, NodeFont, NodeStyle } from '../model/types';
+import { featureColor } from '../model/features';
 import { findNode, useTreeStore } from '../store/treeStore';
 
 /** Concrete hexes, not CSS vars — an explicit colour must survive theme switches and export. */
@@ -256,7 +257,13 @@ export function NodeInspector() {
         {(node.features ?? []).length > 0 && (
           <div className="feature-chips">
             {(node.features ?? []).map((f) => (
-              <span key={f} className="feature-chip">
+              // Same colour the tag renders in on the canvas, so the inspector
+              // and the tree agree at a glance.
+              <span
+                key={f}
+                className="feature-chip"
+                style={{ '--tag-color': featureColor(f) } as React.CSSProperties}
+              >
                 {f}
                 <button
                   className="feature-chip-x"
