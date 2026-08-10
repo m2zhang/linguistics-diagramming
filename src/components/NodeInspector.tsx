@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { effectiveStyle, FONT_LABELS, NodeFont, NodeStyle } from '../model/types';
 import { featureColor } from '../model/features';
 import { findNode, useTreeStore } from '../store/treeStore';
+import { useUiStore } from '../store/uiStore';
 
 /** Concrete hexes, not CSS vars — an explicit colour must survive theme switches and export. */
 const COLORS: { name: string; value: string }[] = [
@@ -49,6 +50,9 @@ export function NodeInspector() {
   const addChild = useTreeStore((s) => s.addChild);
   const setNodeStyle = useTreeStore((s) => s.setNodeStyle);
   const setNodeFeatures = useTreeStore((s) => s.setNodeFeatures);
+  const setNodeStep = useTreeStore((s) => s.setNodeStep);
+  const locked = useUiStore((s) => s.locked);
+  const usedSteps = useUiStore((s) => s.usedSteps);
 
   const node = useMemo(() => findNode(tree, selectedId ?? ''), [tree, selectedId]);
   /** Selected ids that are actually tree nodes (the rest are annotations). */
@@ -92,6 +96,14 @@ export function NodeInspector() {
   const patch = (p: NodeStyle, key?: string) =>
     setNodeStyle(targets, p, key ? `${key}:${targets.join(',')}` : undefined);
 
+  const ownStep = node.step ?? 0;
+  const nodeSlide = Math.max(
+    0,
+    usedSteps.filter((s) => s < ownStep).length,
+  );
+  const prevStep = usedSteps[nodeSlide - 1] ?? 0;
+  const nextStep = usedSteps[nodeSlide + 1] ?? ownStep + 1;
+
   const commitLabel = () => {
     const v = labelDraft.trim();
     if (v && v !== node.label) renameNode(node.id, v);
@@ -110,7 +122,8 @@ export function NodeInspector() {
     setNodeFeatures(node.id, (node.features ?? []).filter((x) => x !== f));
 
   return (
-    <div className="inspector">
+    <div className={`inspector${locked ? ' read-only' : ''}`}>
+      {locked && <div className="locked-note">Editing locked — annotations only</div>}
       <div className="panel-header">
         <div className="panel-title" style={{ margin: 0 }}>
           Node Inspector
@@ -222,6 +235,40 @@ export function NodeInspector() {
               onClick={() => patch({ color: c.value })}
             />
           ))}
+        </div>
+      </div>
+
+      {/* ---- Presentation step ---- */}
+      <div className="insp-group">
+        <label className="insp-label">
+          Appears on step{multi && ' (all selected)'}
+        </label>
+        <div className="insp-row">
+          <button
+            className="btn ghost"
+            style={{ padding: '4px 10px' }}
+            title="Reveal one step earlier"
+            disabled={nodeSlide === 0}
+            onClick={() => setNodeStep(targets, prevStep)}
+          >
+            −
+          </button>
+          <span className="insp-value" style={{ minWidth: '52px' }}>
+            Step {nodeSlide + 1}
+          </span>
+          <button
+            className="btn ghost"
+            style={{ padding: '4px 10px' }}
+            title="Reveal one step later"
+            onClick={() => setNodeStep(targets, nextStep)}
+          >
+            +
+          </button>
+        </div>
+        <div className="hint" style={{ margin: '2px 2px 0' }}>
+          {nodeSlide > 0
+            ? `Hidden until step ${nodeSlide + 1} of ${usedSteps.length}. Children never appear before their parent.`
+            : 'Visible from the first step.'}
         </div>
       </div>
 

@@ -7,7 +7,9 @@ import { PENDING_ASSIGNMENT_KEY, type PendingAssignment } from './assignment/Ass
 import {
   DownloadIcon,
   ImageIcon,
+  LockIcon,
   MoonIcon,
+  PresentIcon,
   SunIcon,
   TrashIcon,
   TreeLogo,
@@ -41,6 +43,9 @@ export function Toolbar() {
   const toggleSidebar = useUiStore((s) => s.toggleSidebar);
   const toggleRightpane = useUiStore((s) => s.toggleRightpane);
   const appMode = useUiStore((s) => s.appMode);
+  const locked = useUiStore((s) => s.locked);
+  const toggleLocked = useUiStore((s) => s.toggleLocked);
+  const startPresenting = useUiStore((s) => s.startPresenting);
   const toast = useUiStore((s) => s.toast);
   const user = useAuthStore((s) => s.user);
   const logout = useAuthStore((s) => s.logout);
@@ -148,6 +153,36 @@ export function Toolbar() {
           <TrashIcon /> Clear Map
         </button>
       )}
+
+      <span className="toolbar-divider" />
+
+      <button
+        className="btn"
+        title="Present: hide the panels and reveal the tree level by level"
+        onClick={() => {
+          if (!tree) {
+            toast('Nothing to present yet', 'error');
+            return;
+          }
+          startPresenting();
+          toast('Presenting — ← / → to step, Esc to exit', 'info');
+        }}
+      >
+        <PresentIcon /> Present
+      </button>
+
+      <button
+        className={`btn icon ghost${locked ? ' active' : ''}`}
+        title={
+          locked
+            ? 'Editing locked — annotations still allowed. Click to unlock.'
+            : 'Lock editing (annotations stay available)'
+        }
+        aria-pressed={locked}
+        onClick={toggleLocked}
+      >
+        <LockIcon open={!locked} />
+      </button>
 
       <span className="toolbar-divider" />
 

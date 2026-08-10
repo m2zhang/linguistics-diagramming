@@ -47,6 +47,7 @@ export function SymbolLibrary() {
     appMode === 'instructor'
       ? CATEGORIZED_SYMBOLS
       : CATEGORIZED_SYMBOLS.filter((c) => STUDENT_CATEGORIES.has(c.category));
+  const locked = useUiStore((s) => s.locked);
 
   const [expanded, setExpanded] = useState(false);
 
@@ -65,6 +66,10 @@ export function SymbolLibrary() {
     // Check if selectedId is a node in the tree
     const targetNode = findNode(tree, selectedId);
     if (targetNode) {
+      if (locked) {
+        toast('Editing is locked — unlock it in the top bar to rename nodes.', 'error');
+        return;
+      }
       renameNode(selectedId, symbol);
       toast(`Renamed node to "${symbol}"`, 'success');
       return;
