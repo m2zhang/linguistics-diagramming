@@ -21,6 +21,7 @@ export function FeatureBundleLibrary() {
   const selectedIds = useTreeStore((s) => s.selectedIds);
   const addNodeFeature = useTreeStore((s) => s.addNodeFeature);
   const toast = useUiStore((s) => s.toast);
+  const locked = useUiStore((s) => s.locked);
 
   const onDragStart = (e: React.DragEvent, label: string) => {
     e.dataTransfer.setData(FEATURE_DND_TYPE, label);
@@ -31,6 +32,13 @@ export function FeatureBundleLibrary() {
 
   /** Apply to every selected tree node, so a whole layer can be tagged at once. */
   const applyToSelection = (label: string) => {
+    // Checked before the empty-selection case, so a locked canvas says it is
+    // locked rather than telling the user to select a node that would not take
+    // the tag anyway. The drop path is already guarded in TreeCanvas.
+    if (locked) {
+      toast('Editing is locked — unlock it in the top bar to tag nodes.', 'error');
+      return;
+    }
     const nodeIds = selectedIds.filter((id) => findNode(tree, id) !== null);
     if (nodeIds.length === 0) {
       toast('Select a node first, or drag the tag onto one.', 'info');
@@ -50,13 +58,13 @@ export function FeatureBundleLibrary() {
         <div className="panel-title" style={{ margin: 0 }}>Feature Bundles</div>
       </div>
 
-      <div className="feature-bundle-list">
+      <div className={`feature-bundle-list${locked ? ' read-only' : ''}`}>
         {FEATURE_BUNDLES.map((b) => (
           <div
             key={b.label}
             className="feature-bundle"
             style={{ '--tag-color': featureColor(b.label) } as React.CSSProperties}
-            draggable
+            draggable={!locked}
             onDragStart={(e) => onDragStart(e, b.label)}
             onClick={() => applyToSelection(b.label)}
             title={`${b.description} — drag onto a node, or click to tag the selection`}
@@ -68,8 +76,15 @@ export function FeatureBundleLibrary() {
       </div>
 
       <div className="hint" style={{ marginTop: '10px' }}>
-        Drag a tag onto any node, or select nodes and click. These three tags and
-        their colours are fixed — the pen and highlighter use a different palette.
+        {locked ? (
+          <>Editing is locked. Unlock it in the top bar to tag nodes.</>
+        ) : (
+          <>
+            Drag a tag onto any node, or select nodes and click. These three tags
+            and their colours are fixed — the pen and highlighter use a different
+            palette.
+          </>
+        )}
       </div>
     </div>
   );

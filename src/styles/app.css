@@ -1239,7 +1239,8 @@ select.insp-input {
   opacity: 0.5;
   pointer-events: none;
 }
-.preset-grid.read-only {
+.preset-grid.read-only,
+.feature-bundle-list.read-only {
   opacity: 0.5;
 }
 .locked-note {
