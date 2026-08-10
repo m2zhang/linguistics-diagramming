@@ -6,7 +6,9 @@ import { useUiStore } from '../store/uiStore';
 import {
   DownloadIcon,
   ImageIcon,
+  LockIcon,
   MoonIcon,
+  PresentIcon,
   SunIcon,
   TrashIcon,
   TreeLogo,
@@ -39,6 +41,9 @@ export function Toolbar() {
   const rightpaneOpen = useUiStore((s) => s.rightpaneOpen);
   const toggleSidebar = useUiStore((s) => s.toggleSidebar);
   const toggleRightpane = useUiStore((s) => s.toggleRightpane);
+  const locked = useUiStore((s) => s.locked);
+  const toggleLocked = useUiStore((s) => s.toggleLocked);
+  const startPresenting = useUiStore((s) => s.startPresenting);
   const toast = useUiStore((s) => s.toast);
 
   const guard = () => {
@@ -100,13 +105,44 @@ export function Toolbar() {
       </button>
       <button
         className="btn danger"
-        title="Clear map to start fresh"
+        title={locked ? 'Editing is locked' : 'Clear map to start fresh'}
+        disabled={locked}
         onClick={() => {
           clear();
           toast('Canvas cleared');
         }}
       >
         <TrashIcon /> Clear Map
+      </button>
+
+      <span className="toolbar-divider" />
+
+      <button
+        className="btn"
+        title="Present: hide the panels and reveal the tree level by level"
+        onClick={() => {
+          if (!tree) {
+            toast('Nothing to present yet', 'error');
+            return;
+          }
+          startPresenting();
+          toast('Presenting — ← / → to step, Esc to exit', 'info');
+        }}
+      >
+        <PresentIcon /> Present
+      </button>
+
+      <button
+        className={`btn icon ghost${locked ? ' active' : ''}`}
+        title={
+          locked
+            ? 'Editing locked — annotations still allowed. Click to unlock.'
+            : 'Lock editing (annotations stay available)'
+        }
+        aria-pressed={locked}
+        onClick={toggleLocked}
+      >
+        <LockIcon open={!locked} />
       </button>
 
       <span className="toolbar-divider" />

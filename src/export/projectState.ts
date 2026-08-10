@@ -4,12 +4,20 @@ import { useTreeStore } from '../store/treeStore';
 export interface ProjectState {
   tree: TreeNode | null;
   annotations?: Annotations;
+  /**
+   * Presentation step metadata. The step each node/annotation appears on rides
+   * on the item itself; only the authoring cursor and the step names live here.
+   * Absent in 1.0 files, which present as a single step.
+   */
+  currentStep?: number;
+  stepLabels?: Record<number, string>;
   version: string;
 }
 
 /** Snapshot the current project (tree + annotations) for embedding in exports. */
 export function currentProjectState(tree: TreeNode): ProjectState {
-  return { tree, annotations: useTreeStore.getState().annotations, version: '1.0' };
+  const { annotations, currentStep, stepLabels } = useTreeStore.getState();
+  return { tree, annotations, currentStep, stepLabels, version: '1.1' };
 }
 
 /** JSON → base64 (UTF-8 safe; PNG tEXt and PDF comments are Latin-1 only). */

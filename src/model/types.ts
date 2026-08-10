@@ -98,6 +98,11 @@ export interface TreeNode {
   style?: NodeStyle;
   /** Syntactic features shown under the label, e.g. ['+wh', 'uCase:nom']. */
   features?: string[];
+  /**
+   * Presentation step this node first appears on. Absent = 0, so files saved
+   * before stepping existed present as a single step.
+   */
+  step?: number;
 }
 
 let _idCounter = 0;
@@ -116,8 +121,18 @@ export function isLeaf(node: TreeNode): boolean {
   return node.children.length === 0;
 }
 
+/**
+ * Presentation step an annotation first appears on. Absent = 0.
+ *
+ * Annotations carry their own stamp rather than inheriting one from the tree:
+ * they float in world coordinates and have no parent to inherit from.
+ */
+interface Stepped {
+  step?: number;
+}
+
 /** Freehand pen stroke drawn on the canvas, in world (tree) coordinates. */
-export interface Stroke {
+export interface Stroke extends Stepped {
   id: string;
   points: { x: number; y: number }[];
   color: string;
@@ -126,7 +141,7 @@ export interface Stroke {
 }
 
 /** Floating text note placed on the canvas, in world coordinates. */
-export interface TextNote {
+export interface TextNote extends Stepped {
   id: string;
   x: number;
   y: number;
@@ -135,7 +150,7 @@ export interface TextNote {
 }
 
 /** Bounding box annotation drawn on the canvas, in world coordinates. */
-export interface Box {
+export interface Box extends Stepped {
   id: string;
   x: number;
   y: number;
@@ -145,7 +160,7 @@ export interface Box {
 }
 
 /** Connector line (arrow) drawn on the canvas, in world coordinates. */
-export interface Connector {
+export interface Connector extends Stepped {
   id: string;
   startX: number;
   startY: number;
@@ -193,5 +208,104 @@ export function carryOverDecorations(from: TreeNode | null, to: TreeNode): TreeN
   };
   if (from.style) next.style = { ...from.style };
   if (from.features?.length) next.features = [...from.features];
+  // Step stamps must survive a re-parse too, or typing in the bracket editor
+  // would reset the whole tree to step 0.
+  if (from.step !== undefined) next.step = from.step;
   return next;
+}
+
+// ---------------------------------------------------------------------------
+// Presentation steps
+// ---------------------------------------------------------------------------
+
+/**
+ * Stamp every node that has no step yet with `step`.
+ *
+ * Called on whatever a mutation just created: existing nodes keep the step they
+ * were born on, so an edit never back-dates or re-dates the rest of the tree.
+ */
+export function stampNewNodes(node: TreeNode, step: number): TreeNode {
+  const children = node.children.map((c) => stampNewNodes(c, step));
+  const changed = children.some((c, i) => c !== node.children[i]);
+  if (node.step === undefined) return { ...node, children, step };
+  return changed ? { ...node, children } : node;
+}
+
+/** True when any node still has no stamp — i.e. the edit that made it added nodes. */
+export function hasUnstampedNodes(node: TreeNode): boolean {
+  if (node.step === undefined) return true;
+  return node.children.some(hasUnstampedNodes);
+}
+
+/** Every step number used by the tree (absent stamps count as 0). */
+export function collectTreeSteps(node: TreeNode | null, out = new Set<number>()): Set<number> {
+  if (!node) return out;
+  out.add(node.step ?? 0);
+  for (const c of node.children) collectTreeSteps(c, out);
+  return out;
+}
+
+/** Every step number used by the annotation layer (absent stamps count as 0). */
+export function collectAnnotationSteps(a: Annotations, out = new Set<number>()): Set<number> {
+  for (const s of a.strokes) out.add(s.step ?? 0);
+  for (const n of a.notes) out.add(n.step ?? 0);
+  for (const b of a.boxes ?? []) out.add(b.step ?? 0);
+  for (const c of a.connectors ?? []) out.add(c.step ?? 0);
+  return out;
+}
+
+/** Highest step stamped anywhere in the document; 0 for an empty document. */
+export function maxStep(tree: TreeNode | null, annotations: Annotations): number {
+  let max = 0;
+  for (const s of collectTreeSteps(tree)) max = Math.max(max, s);
+  for (const s of collectAnnotationSteps(annotations)) max = Math.max(max, s);
+  return max;
+}
+
+/** Apply `fn` to the step of every node in `ids`. */
+export function mapNodeSteps(
+  node: TreeNode,
+  ids: Set<string>,
+  fn: (step: number) => number,
+): TreeNode {
+  const children = node.children.map((c) => mapNodeSteps(c, ids, fn));
+  const changed = children.some((c, i) => c !== node.children[i]);
+  if (ids.has(node.id)) {
+    const next = Math.max(0, fn(node.step ?? 0));
+    if (next !== (node.step ?? 0)) return { ...node, children, step: next };
+  }
+  return changed ? { ...node, children } : node;
+}
+
+/** Remap every step in the tree through `fn` (used by merge / renumber). */
+export function remapTreeSteps(node: TreeNode, fn: (step: number) => number): TreeNode {
+  const children = node.children.map((c) => remapTreeSteps(c, fn));
+  const next = Math.max(0, fn(node.step ?? 0));
+  const changed = next !== (node.step ?? 0) || children.some((c, i) => c !== node.children[i]);
+  return changed ? { ...node, children, step: next } : node;
+}
+
+/** Remap every step on the annotation layer through `fn`. */
+export function remapAnnotationSteps(a: Annotations, fn: (step: number) => number): Annotations {
+  const remap = <T extends Stepped>(item: T): T => ({
+    ...item,
+    step: Math.max(0, fn(item.step ?? 0)),
+  });
+  return {
+    strokes: a.strokes.map(remap),
+    notes: a.notes.map(remap),
+    boxes: (a.boxes ?? []).map(remap),
+    connectors: (a.connectors ?? []).map(remap),
+  };
+}
+
+/** True when nothing has been drawn or built yet. */
+export function isEmptyDocument(tree: TreeNode | null, a: Annotations): boolean {
+  return (
+    !tree &&
+    a.strokes.length === 0 &&
+    a.notes.length === 0 &&
+    (a.boxes?.length ?? 0) === 0 &&
+    (a.connectors?.length ?? 0) === 0
+  );
 }

@@ -503,6 +503,103 @@ select.insp-input {
   color: var(--danger);
 }
 
+/* ---------- Presentation steps ---------- */
+.steps-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 16px;
+  border-bottom: 1px solid var(--border);
+}
+.step-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 208px;
+  overflow-y: auto;
+}
+.step-row {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 6px 8px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  background: var(--bg-input);
+  cursor: pointer;
+}
+.step-row:hover {
+  border-color: var(--border);
+}
+.step-row.active {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+/* A step whose nodes were all deleted: kept visible so "Tidy" makes sense. */
+.step-row.empty {
+  opacity: 0.55;
+}
+.step-num {
+  flex: none;
+  width: 20px;
+  height: 20px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  font-size: 11px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.step-row.active .step-num {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+.step-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.step-name {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--text);
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 600;
+  text-align: left;
+  cursor: text;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.step-name-empty {
+  font-weight: 500;
+  color: var(--text-dim);
+}
+.step-meta {
+  font-size: 11px;
+  color: var(--text-dim);
+}
+.step-rename {
+  padding: 2px 6px;
+  font-size: 12.5px;
+}
+.step-merge {
+  flex: none;
+  opacity: 0;
+  padding: 3px;
+}
+.step-row:hover .step-merge,
+.step-row.active .step-merge {
+  opacity: 1;
+}
+
 /* ---------- Bracket editor ---------- */
 .bracket-editor {
   display: flex;
@@ -888,4 +985,120 @@ select.insp-input {
 .erasable-group:hover .stroke {
   stroke: var(--danger) !important;
   opacity: 0.8;
+}
+
+/* ---------- Presentation mode ---------- */
+.presentation-bar {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 8px 18px;
+  background: var(--bg-elevated);
+  border-bottom: 1px solid var(--border);
+}
+.pres-title {
+  flex: 1;
+  min-width: 0;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 15px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.pres-steps {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 4px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-panel);
+}
+.pres-counter {
+  display: flex;
+  flex-direction: column;
+  min-width: 96px;
+  text-align: center;
+  font-size: 13px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-dim);
+}
+/* A named step reads as a caption under the counter. */
+.pres-step-name {
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 11.5px;
+  font-weight: 500;
+  font-style: normal;
+  color: var(--text);
+}
+.pres-actions {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+}
+.pres-actions .btn.ghost {
+  font-size: 13px;
+  padding: 6px 10px;
+}
+
+/* A slide, not a workspace: drop the dotted worksheet grid. */
+.app.presenting .canvas-wrap {
+  background-image: none;
+}
+
+/*
+ * Unrevealed material keeps its geometry so nothing shifts as it appears: the
+ * layout is always the finished tree's, whichever step is on screen.
+ */
+/* Scoped to the marks themselves: a transition on every <g> would also catch
+ * the pan/zoom transform group and turn dragging the canvas into a smear. */
+.tnode-group,
+.connector,
+.note,
+.box-annotation,
+.ann-group {
+  transition: opacity 0.3s ease, transform 0.3s ease;
+}
+.tnode-group.unrevealed,
+.connector.unrevealed,
+.note.unrevealed,
+.box-annotation.unrevealed,
+.ann-group.unrevealed {
+  opacity: 0;
+  pointer-events: none;
+}
+.tnode-group.unrevealed {
+  transform: translateY(6px);
+}
+
+/* ---------- Locked (read-only) editing ---------- */
+/* Nodes stop taking pointer events, so a drag anywhere still pans the canvas. */
+.canvas-svg.locked .tnode-group {
+  pointer-events: none;
+}
+.inspector.read-only .insp-group {
+  opacity: 0.5;
+  pointer-events: none;
+}
+.preset-grid.read-only {
+  opacity: 0.5;
+}
+.locked-note {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 10px;
+  padding: 6px 9px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-input);
+  font-size: 12px;
+  color: var(--text-dim);
 }

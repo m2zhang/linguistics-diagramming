@@ -237,3 +237,189 @@ describe('node styling', () => {
     expect(np.features).toEqual(['+wh']);
   });
 });
+
+describe('presentation steps', () => {
+  const reset = () => {
+    useTreeStore.setState({
+      tree: null,
+      annotations: EMPTY_ANNOTATIONS,
+      past: [],
+      future: [],
+      selectedId: null,
+      selectedIds: [],
+      parseErrors: [],
+      currentStep: 0,
+      stepLabels: {},
+    });
+  };
+  const root = () => useTreeStore.getState().tree!;
+
+  beforeEach(reset);
+
+  it('puts the first tree typed into an empty document on step 0', () => {
+    useTreeStore.getState().setTreeFromBracket('[S [NP a] [VP b]]');
+    expect(root().step).toBe(0);
+    expect(root().children.map((c) => c.step)).toEqual([0, 0]);
+    expect(useTreeStore.getState().currentStep).toBe(0);
+  });
+
+  it('opens a new step per added child, stamping only the new node', () => {
+    useTreeStore.getState().setTreeFromBracket('[S [NP a]]');
+    useTreeStore.getState().addChild(root().id, 'VP');
+    useTreeStore.getState().addChild(root().id, 'PP');
+
+    expect(root().step).toBe(0);
+    expect(root().children.map((c) => c.step)).toEqual([0, 1, 2]);
+    expect(useTreeStore.getState().currentStep).toBe(2);
+  });
+
+  it('reveals an attached preset as a single step', () => {
+    useTreeStore.getState().setTreeFromBracket('[S [NP a]]');
+    useTreeStore.getState().attachPreset(root().id, {
+      id: 'p',
+      label: 'VP',
+      children: [
+        { id: 'p1', label: 'V', children: [] },
+        { id: 'p2', label: 'NP', children: [] },
+      ],
+    });
+    const attached = root().children[1];
+    expect(attached.label).toBe('V');
+    // Every node the preset brought reveals together.
+    expect(root().children.slice(1).map((c) => c.step)).toEqual([1, 1]);
+  });
+
+  it('keeps step stamps through a bracket re-parse', () => {
+    useTreeStore.getState().setTreeFromBracket('[S [NP a]]');
+    useTreeStore.getState().addChild(root().id, 'VP');
+    expect(root().children[1].step).toBe(1);
+
+    // Retyping the text rebuilds every node from scratch.
+    useTreeStore.getState().setTreeFromBracket('[S [NP a] [VP]]');
+    expect(root().children.map((c) => c.step)).toEqual([0, 1]);
+  });
+
+  it('does not open a step for an edit that adds no nodes', () => {
+    useTreeStore.getState().setTreeFromBracket('[S [NP a]]');
+    useTreeStore.getState().addChild(root().id, 'VP');
+    const before = useTreeStore.getState().currentStep;
+
+    useTreeStore.getState().setTreeFromBracket('[TP [NP a] [VP]]'); // rename only
+    expect(useTreeStore.getState().currentStep).toBe(before);
+    expect(root().label).toBe('TP');
+    expect(root().children.map((c) => c.step)).toEqual([0, 1]);
+  });
+
+  it('stamps annotations with the step being authored, without opening one', () => {
+    useTreeStore.getState().setTreeFromBracket('[S [NP a]]');
+    useTreeStore.getState().addChild(root().id, 'VP'); // step 1
+    useTreeStore.getState().addNote({ x: 0, y: 0, text: 'note' });
+
+    expect(useTreeStore.getState().annotations.notes[0].step).toBe(1);
+    expect(useTreeStore.getState().currentStep).toBe(1);
+  });
+
+  it('leaves no trace of a deleted annotation in the deck', () => {
+    useTreeStore.getState().setTreeFromBracket('[S [NP a]]');
+    useTreeStore.getState().newStep();
+    useTreeStore.getState().addNote({ x: 0, y: 0, text: 'keep' });
+    useTreeStore.getState().addNote({ x: 1, y: 1, text: 'drop' });
+    const drop = useTreeStore.getState().annotations.notes[1].id;
+    useTreeStore.getState().removeAnnotation(drop);
+
+    const notes = useTreeStore.getState().annotations.notes;
+    expect(notes.map((n) => n.text)).toEqual(['keep']);
+    expect(notes[0].step).toBe(1);
+  });
+
+  it('spends the step reserved by newStep instead of opening another', () => {
+    useTreeStore.getState().setTreeFromBracket('[S [NP a]]');
+    useTreeStore.getState().newStep();
+    expect(useTreeStore.getState().currentStep).toBe(1);
+    useTreeStore.getState().addChild(root().id, 'VP');
+    expect(root().children[1].step).toBe(1);
+  });
+
+  it('merges a step into the one before it and closes the gap', () => {
+    useTreeStore.getState().setTreeFromBracket('[S [NP a]]');
+    useTreeStore.getState().addChild(root().id, 'VP'); // 1
+    useTreeStore.getState().addChild(root().id, 'PP'); // 2
+    useTreeStore.getState().renameStep(2, 'third');
+
+    useTreeStore.getState().mergeStepWithPrevious(1);
+    expect(root().children.map((c) => c.step)).toEqual([0, 0, 1]);
+    // The merged step's name goes with it; later names shift down.
+    expect(useTreeStore.getState().stepLabels).toEqual({ 1: 'third' });
+    expect(useTreeStore.getState().currentStep).toBe(1);
+  });
+
+  it('moves a selection onto another step', () => {
+    useTreeStore.getState().setTreeFromBracket('[S [NP a] [VP b]]');
+    const vpId = root().children[1].id;
+    useTreeStore.getState().setNodeStep([vpId], 2);
+    expect(root().children[1].step).toBe(2);
+    // Its own children are untouched: layout clamps them to the parent instead.
+    expect(root().children[1].children[0].step).toBe(0);
+  });
+
+  it('restores steps on undo without the deck outliving the tree', () => {
+    useTreeStore.getState().setTreeFromBracket('[S [NP a]]');
+    useTreeStore.getState().addChild(root().id, 'VP');
+    expect(useTreeStore.getState().currentStep).toBe(1);
+
+    useTreeStore.getState().undo();
+    expect(root().children).toHaveLength(1);
+    expect(useTreeStore.getState().currentStep).toBe(0);
+
+    useTreeStore.getState().redo();
+    expect(root().children[1].step).toBe(1);
+    expect(useTreeStore.getState().currentStep).toBe(1);
+  });
+});
+
+describe('replacing the tree from a drawing', () => {
+  beforeEach(() => {
+    useTreeStore.setState({
+      tree: null,
+      annotations: EMPTY_ANNOTATIONS,
+      past: [],
+      future: [],
+      selectedId: null,
+      selectedIds: [],
+      currentStep: 0,
+      stepLabels: {},
+    });
+  });
+
+  it('restarts the deck instead of stacking onto the old step numbers', () => {
+    // Build a tree across several steps, as a normal editing session would.
+    useTreeStore.getState().setTreeFromBracket('[S [NP a]]');
+    const rootId = useTreeStore.getState().tree!.id;
+    useTreeStore.getState().addChild(rootId, 'VP');
+    useTreeStore.getState().addChild(rootId, 'PP');
+    useTreeStore.getState().renameStep(1, 'old name');
+
+    // Recognition replaces the whole thing with a single node.
+    useTreeStore.getState().applyDrawingResult({ id: 'n', label: 'N', children: [] }, []);
+
+    const tree = useTreeStore.getState().tree!;
+    expect(tree.label).toBe('N');
+    expect(tree.step).toBe(0);
+    expect(useTreeStore.getState().currentStep).toBe(0);
+    // Names belonged to steps that no longer exist.
+    expect(useTreeStore.getState().stepLabels).toEqual({});
+  });
+
+  it('keeps surviving annotations in order behind the new tree', () => {
+    useTreeStore.getState().setTreeFromBracket('[S [NP a]]');
+    useTreeStore.getState().newStep();
+    useTreeStore.getState().addNote({ x: 0, y: 0, text: 'kept' }); // step 1
+
+    useTreeStore.getState().applyDrawingResult({ id: 'n', label: 'N', children: [] }, []);
+
+    expect(useTreeStore.getState().tree!.step).toBe(0);
+    // The note was on step 1 of the old numbering; it closes up to step 1 of the new.
+    expect(useTreeStore.getState().annotations.notes[0].step).toBe(1);
+    expect(useTreeStore.getState().currentStep).toBe(1);
+  });
+});

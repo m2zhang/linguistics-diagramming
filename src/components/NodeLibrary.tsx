@@ -57,6 +57,7 @@ export function NodeLibrary() {
     e.dataTransfer.effectAllowed = 'copy';
   };
   const toggleSidebar = useUiStore((s) => s.toggleSidebar);
+  const locked = useUiStore((s) => s.locked);
 
   return (
     <div className="section">
@@ -70,12 +71,12 @@ export function NodeLibrary() {
           <ChevronLeftIcon />
         </button>
       </div>
-      <div className="preset-grid">
+      <div className={`preset-grid${locked ? ' read-only' : ''}`}>
         {PRESETS.map((p) => (
           <div
             key={p.id}
             className="preset"
-            draggable
+            draggable={!locked}
             onDragStart={(e) => onDragStart(e, p)}
           >
             {p.icon}
@@ -87,8 +88,14 @@ export function NodeLibrary() {
         ))}
       </div>
       <div className="hint">
-        Drag a preset onto any node to add branches. Double-click a node to rename
-        it, press <kbd>Delete</kbd> to remove it.
+        {locked ? (
+          <>Editing is locked. Unlock it in the top bar to change the tree.</>
+        ) : (
+          <>
+            Drag a preset onto any node to add branches. Double-click a node to
+            rename it, press <kbd>Delete</kbd> to remove it.
+          </>
+        )}
       </div>
     </div>
   );

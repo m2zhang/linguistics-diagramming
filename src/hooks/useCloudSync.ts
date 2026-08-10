@@ -6,7 +6,8 @@ import { EMPTY_ANNOTATIONS } from '../model/types';
 import type { ProjectState } from '../export/projectState';
 
 const SAVE_DEBOUNCE_MS = 600;
-const VERSION = '1.0';
+/** 1.1 added presentation steps; 1.0 files load fine and present as one step. */
+const VERSION = '1.1';
 
 /**
  * Phase 2: persist the tree to Supabase instead of sessionStorage.
@@ -20,6 +21,8 @@ export function useCloudSync() {
   const tree = useTreeStore((s) => s.tree);
   const annotations = useTreeStore((s) => s.annotations);
   const treeRevision = useTreeStore((s) => s.treeRevision);
+  const currentStep = useTreeStore((s) => s.currentStep);
+  const stepLabels = useTreeStore((s) => s.stepLabels);
 
   const currentFileId = useFileStore((s) => s.currentFileId);
   const setCurrentFile = useFileStore((s) => s.setCurrentFile);
@@ -46,6 +49,8 @@ export function useCloudSync() {
         const content = await loadTree(meta.id);
         useTreeStore.getState().replaceTree(content.tree ?? null);
         if (content.annotations) useTreeStore.getState().setAnnotations(content.annotations);
+        // After the tree and annotations, so the fallback can read their stamps.
+        useTreeStore.getState().loadStepMeta(content.currentStep, content.stepLabels);
 
         setCurrentFile(meta.id, meta.title);
         setSaveStatus('saved');
@@ -66,7 +71,7 @@ export function useCloudSync() {
     window.clearTimeout(saveTimer.current);
     saveTimer.current = window.setTimeout(async () => {
       try {
-        const content: ProjectState = { tree, annotations, version: VERSION };
+        const content: ProjectState = { tree, annotations, currentStep, stepLabels, version: VERSION };
         await saveTree(currentFileId, content);
         setSaveStatus('saved');
       } catch (err) {
@@ -74,5 +79,5 @@ export function useCloudSync() {
         setSaveStatus('error');
       }
     }, SAVE_DEBOUNCE_MS);
-  }, [tree, annotations, treeRevision, currentFileId, setSaveStatus]);
+  }, [tree, annotations, treeRevision, currentStep, stepLabels, currentFileId, setSaveStatus]);
 }
