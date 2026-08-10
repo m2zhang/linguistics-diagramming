@@ -30,6 +30,8 @@ export function usePersistence() {
   const tree = useTreeStore((s) => s.tree);
   const annotations = useTreeStore((s) => s.annotations);
   const treeRevision = useTreeStore((s) => s.treeRevision);
+  const currentStep = useTreeStore((s) => s.currentStep);
+  const stepLabels = useTreeStore((s) => s.stepLabels);
   const restored = useRef(false);
   const saveTimer = useRef<number | undefined>(undefined);
 
@@ -40,7 +42,12 @@ export function usePersistence() {
     try {
       const raw = sessionStorage.getItem(KEY);
       if (raw) {
-        const parsed = JSON.parse(raw) as { tree: TreeNode | null; annotations?: Annotations };
+        const parsed = JSON.parse(raw) as {
+          tree: TreeNode | null;
+          annotations?: Annotations;
+          currentStep?: number;
+          stepLabels?: Record<number, string>;
+        };
         useTreeStore.getState().replaceTree(parsed.tree);
         if (parsed.annotations) {
           // Drop geometry-identical duplicate strokes (older sessions saved
@@ -54,6 +61,8 @@ export function usePersistence() {
           });
           useTreeStore.getState().setAnnotations({ ...parsed.annotations, strokes });
         }
+        // After the tree and annotations, so the fallback can read their stamps.
+        useTreeStore.getState().loadStepMeta(parsed.currentStep, parsed.stepLabels);
       }
     } catch {
       /* ignore corrupt session data */
@@ -67,11 +76,11 @@ export function usePersistence() {
     window.clearTimeout(saveTimer.current);
     saveTimer.current = window.setTimeout(() => {
       try {
-        sessionStorage.setItem(KEY, JSON.stringify({ tree, annotations }));
+        sessionStorage.setItem(KEY, JSON.stringify({ tree, annotations, currentStep, stepLabels }));
       } catch {
         /* quota / serialization issues are non-fatal */
       }
     }, 300);
-  }, [tree, annotations, treeRevision]);
+  }, [tree, annotations, treeRevision, currentStep, stepLabels]);
 }
 

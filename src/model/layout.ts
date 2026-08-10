@@ -9,6 +9,11 @@ export interface PositionedNode {
   depth: number;
   style?: NodeStyle;
   features?: string[];
+  /**
+   * Presentation step this node appears on, clamped so it is never earlier than
+   * its parent's — a child revealed before its parent would hang in mid-air.
+   */
+  step: number;
 }
 
 export interface Edge {
@@ -135,10 +140,11 @@ export function layoutTree(root: TreeNode, options: LayoutOptions = {}): LayoutR
   const nodes: PositionedNode[] = [];
   const edges: Edge[] = [];
 
-  function collect(node: TreeNode) {
+  function collect(node: TreeNode, parentStep = 0) {
     const x = (xById.get(node.id) ?? 0) + padding;
     const depth = depthById.get(node.id) ?? 0;
     const y = depth * levelGap + padding;
+    const step = Math.max(node.step ?? 0, parentStep);
     nodes.push({
       id: node.id,
       label: node.label,
@@ -148,6 +154,7 @@ export function layoutTree(root: TreeNode, options: LayoutOptions = {}): LayoutR
       depth,
       style: node.style,
       features: node.features,
+      step,
     });
 
     for (const child of node.children) {
@@ -160,7 +167,7 @@ export function layoutTree(root: TreeNode, options: LayoutOptions = {}): LayoutR
         parentId: node.id,
         childId: child.id,
       });
-      collect(child);
+      collect(child, step);
     }
   }
 

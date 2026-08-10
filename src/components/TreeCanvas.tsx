@@ -12,7 +12,18 @@ import { useTreeStore } from '../store/treeStore';
 import { useUiStore } from '../store/uiStore';
 import { drawingToTree, pointToSegment } from '../model/drawingToTree';
 import { sketchToTree } from '../vision/sketchToTree';
-import { effectiveStyle, FONT_STACKS, makeId } from '../model/types';
+import {
+  Annotations,
+  Box,
+  collectAnnotationSteps,
+  Connector,
+  effectiveStyle,
+  EMPTY_ANNOTATIONS,
+  FONT_STACKS,
+  makeId,
+  Stroke,
+  TextNote,
+} from '../model/types';
 import {
   CursorIcon,
   EraserIcon,
@@ -103,6 +114,18 @@ function ArrowIcon() {
   );
 }
 
+/** The two short strokes forming an arrowhead at a connector's end point. */
+function arrowHeadPath(c: { startX: number; startY: number; endX: number; endY: number }): string {
+  const angle = Math.atan2(c.endY - c.startY, c.endX - c.startX);
+  const len = 10;
+  const spread = Math.PI / 6;
+  const x3 = c.endX - len * Math.cos(angle - spread);
+  const y3 = c.endY - len * Math.sin(angle - spread);
+  const x4 = c.endX - len * Math.cos(angle + spread);
+  const y4 = c.endY - len * Math.sin(angle + spread);
+  return `M ${x3} ${y3} L ${c.endX} ${c.endY} L ${x4} ${y4}`;
+}
+
 /** Inline SVG presentation for a node's label, honouring its inspector style. */
 function labelStyle(n: PositionedNode): React.CSSProperties {
   const s = effectiveStyle(n.style, n.isLeaf);
@@ -150,6 +173,12 @@ export function TreeCanvas() {
   const undo = useTreeStore((s) => s.undo);
   const redo = useTreeStore((s) => s.redo);
   const toast = useUiStore((s) => s.toast);
+  const presenting = useUiStore((s) => s.presenting);
+  const revealMode = useUiStore((s) => s.revealMode);
+  const revealStep = useUiStore((s) => s.revealStep);
+  const previewStep = useUiStore((s) => s.previewStep);
+  const setRevealBounds = useUiStore((s) => s.setRevealBounds);
+  const locked = useUiStore((s) => s.locked);
 
   const appMode = useUiStore((s) => s.appMode);
 
@@ -201,6 +230,110 @@ export function TreeCanvas() {
     () => new Map((layout?.nodes ?? []).map((n) => [n.id, n])),
     [layout],
   );
+  // ----- Step-by-step reveal -----
+  const maxDepth = useMemo(
+    () => (layout?.nodes ?? []).reduce((m, n) => Math.max(m, n.depth), 0),
+    [layout],
+  );
+  /**
+   * The steps this document actually uses, ascending — one slide each.
+   *
+   * Node steps come from the layout, so they are already clamped to their
+   * parents': a child stamped earlier than its parent contributes the step it
+   * will really appear on, not the one recorded on it.
+   */
+  const usedSteps = useMemo(() => {
+    const steps = new Set<number>();
+    for (const n of layout?.nodes ?? []) steps.add(n.step);
+    for (const step of collectAnnotationSteps(annotations)) steps.add(step);
+    return [...steps].sort((a, b) => a - b);
+  }, [layout, annotations]);
+  useEffect(() => {
+    setRevealBounds({ usedSteps, maxDepth });
+  }, [usedSteps, maxDepth, setRevealBounds]);
+
+  /**
+   * How far the reveal has got, or null when everything is on show. Presenting
+   * drives it; while authoring, the Steps panel can preview a step in place.
+   */
+  const revealLimit = presenting ? revealStep : previewStep;
+  /** Previewing is always about steps; only the presenter can pick depth mode. */
+  const byDepth = presenting && revealMode === 'depth';
+
+  /**
+   * Unrevealed nodes are faded out rather than unmounted, so every node keeps
+   * the position it has in the finished tree — nothing shifts as they appear.
+   */
+  const isHidden = useCallback(
+    (n: { depth: number; step: number }) =>
+      revealLimit !== null && (byDepth ? n.depth > revealLimit : n.step > revealLimit),
+    [revealLimit, byDepth],
+  );
+
+  /** Annotations reveal on the step they were drawn on; depth mode ignores them. */
+  const isAnnotationHidden = useCallback(
+    (a: { step?: number }) => revealLimit !== null && !byDepth && (a.step ?? 0) > revealLimit,
+    [revealLimit, byDepth],
+  );
+
+  /** Ids of everything on the annotation layer — the only things a locked canvas may delete. */
+  const annotationIds = useMemo(() => {
+    const ids = new Set<string>();
+    for (const s of annotations.strokes) ids.add(s.id);
+    for (const n of annotations.notes) ids.add(n.id);
+    for (const b of annotations.boxes ?? []) ids.add(b.id);
+    for (const c of annotations.connectors ?? []) ids.add(c.id);
+    return ids;
+  }, [annotations]);
+
+  // ----- Scratch ink -----
+  /**
+   * Marks made *during* a lecture. They live outside the document: visible on
+   * every step (never vanishing when the presenter steps back) and thrown away
+   * on exit, so the saved deck is exactly what was authored.
+   */
+  const [scratch, setScratch] = useState<Annotations>(EMPTY_ANNOTATIONS);
+  useEffect(() => {
+    if (!presenting) setScratch(EMPTY_ANNOTATIONS);
+  }, [presenting]);
+
+  const hasScratch =
+    scratch.strokes.length > 0 ||
+    scratch.notes.length > 0 ||
+    (scratch.boxes?.length ?? 0) > 0 ||
+    (scratch.connectors?.length ?? 0) > 0;
+
+  /** Drop a scratch mark by id, whichever layer it is on. */
+  const eraseScratch = useCallback((id: string) => {
+    setScratch((a) => ({
+      strokes: a.strokes.filter((x) => x.id !== id),
+      notes: a.notes.filter((x) => x.id !== id),
+      boxes: (a.boxes ?? []).filter((x) => x.id !== id),
+      connectors: (a.connectors ?? []).filter((x) => x.id !== id),
+    }));
+  }, []);
+
+  // New annotations go to the document while authoring, to the ink while presenting.
+  const putStroke = (stroke: Omit<Stroke, 'id'>) => {
+    if (!presenting) return addStroke(stroke);
+    setScratch((a) => ({ ...a, strokes: [...a.strokes, { ...stroke, id: makeId() }] }));
+  };
+  const putNote = (note: Omit<TextNote, 'id'>) => {
+    if (!presenting) return addNote(note);
+    setScratch((a) => ({ ...a, notes: [...a.notes, { ...note, id: makeId() }] }));
+  };
+  const putBox = (box: Omit<Box, 'id'>) => {
+    if (!presenting) return addBox(box);
+    setScratch((a) => ({ ...a, boxes: [...(a.boxes ?? []), { ...box, id: makeId() }] }));
+  };
+  const putConnector = (connector: Omit<Connector, 'id'>) => {
+    if (!presenting) return addConnector(connector);
+    setScratch((a) => ({
+      ...a,
+      connectors: [...(a.connectors ?? []), { ...connector, id: makeId() }],
+    }));
+  };
+
   //There are annotations if there is at least one stroke, note, box or connector
   const hasAnnotations =
   annotations.strokes.length > 0 ||
@@ -234,6 +367,14 @@ export function TreeCanvas() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [layout !== null]);
 
+  // Entering/leaving presentation hides the side panels, so the canvas changes
+  // size — refit on the frame after the grid has actually resized.
+  useEffect(() => {
+    const id = requestAnimationFrame(fitToView);
+    return () => cancelAnimationFrame(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [presenting]);
+
   /** Convert a pointer event to world (tree) coordinates. */
   const toWorld = (e: { clientX: number; clientY: number }) => {
     const rect = wrapRef.current!.getBoundingClientRect();
@@ -249,16 +390,46 @@ export function TreeCanvas() {
    */
   const eraseAt = (p: { x: number; y: number }): boolean => {
     const tol = 14 / view.scale;
-    let best: { id: string; d: number; isNode: boolean } | null = null;
-    const consider = (id: string, d: number, isNode = false) => {
-      if (d <= tol && (!best || d < best.d)) best = { id, d, isNode };
+    let best: { id: string; d: number; isNode: boolean; isScratch?: boolean } | null = null;
+    const consider = (id: string, d: number, isNode = false, isScratch = false) => {
+      if (d <= tol && (!best || d < best.d)) best = { id, d, isNode, isScratch };
     };
 
     for (const n of layout?.nodes ?? []) {
+      // A locked canvas erases annotations only; unrevealed nodes aren't there yet.
+      if (locked || isHidden(n)) continue;
       const b = nodeBox(n);
       const dx = Math.max(b.x - p.x, p.x - (b.x + b.w), 0);
       const dy = Math.max(b.y - p.y, p.y - (b.y + b.h), 0);
       consider(n.id, Math.hypot(dx, dy), true);
+    }
+    // Scratch ink erases like anything else — "let me rub that out" mid-lecture.
+    for (const s of scratch.strokes) {
+      let d = Infinity;
+      if (s.points.length === 1) d = Math.hypot(p.x - s.points[0].x, p.y - s.points[0].y);
+      for (let i = 1; i < s.points.length; i++) {
+        d = Math.min(d, pointToSegment(p, s.points[i - 1], s.points[i]));
+      }
+      consider(s.id, d, false, true);
+    }
+    for (const n of scratch.notes) {
+      const w = Math.max(20, n.text.length * 7.5);
+      const dx = p.x < n.x ? n.x - p.x : Math.max(p.x - (n.x + w), 0);
+      const dy = p.y < n.y - 14 ? n.y - 14 - p.y : Math.max(p.y - (n.y + 5), 0);
+      consider(n.id, Math.hypot(dx, dy), false, true);
+    }
+    for (const b of scratch.boxes ?? []) {
+      const dx = Math.max(b.x - p.x, p.x - (b.x + b.w), 0);
+      const dy = Math.max(b.y - p.y, p.y - (b.y + b.h), 0);
+      consider(b.id, Math.hypot(dx, dy), false, true);
+    }
+    for (const c of scratch.connectors ?? []) {
+      consider(
+        c.id,
+        pointToSegment(p, { x: c.startX, y: c.startY }, { x: c.endX, y: c.endY }),
+        false,
+        true,
+      );
     }
     for (const n of annotations.notes) {
       // Approximate text bbox: anchored at (x, y baseline), ~7.5px per char.
@@ -296,8 +467,9 @@ export function TreeCanvas() {
     }
 
     if (!best) return false;
-    const hit = best as { id: string; d: number; isNode: boolean };
-    if (hit.isNode) deleteMultiple([hit.id]);
+    const hit = best as { id: string; d: number; isNode: boolean; isScratch: boolean };
+    if (hit.isScratch) eraseScratch(hit.id);
+    else if (hit.isNode) deleteMultiple([hit.id]);
     else removeAnnotation(hit.id);
     return true;
   };
@@ -332,7 +504,8 @@ export function TreeCanvas() {
       eraseAt(toWorld(e));
       return;
     }
-    if ((e.target as Element).closest('.tnode-group')) return;
+    // Locked: nodes don't consume the press, so dragging over one still pans.
+    if (!locked && (e.target as Element).closest('.tnode-group')) return;
     select(null);
     setPanning(true);
     panStart.current = { x: e.clientX, y: e.clientY, tx: view.tx, ty: view.ty };
@@ -442,7 +615,7 @@ export function TreeCanvas() {
       liveStrokeRef.current = null;
       if (stroke && stroke.length > 1) {
         //Default values of the stroke. This is a ternary expression that just startes that if tool is a highlight, set it to 14. Otherwise, make it 2.
-        addStroke({ points: stroke, color: strokeColor, width: tool === 'highlight'? 14: 2, opacity: tool === 'highlight'? 0.3: 1 });
+        putStroke({ points: stroke, color: strokeColor, width: tool === 'highlight'? 14: 2, opacity: tool === 'highlight'? 0.3: 1 });
       }
       setLiveStroke(null);
     }
@@ -451,7 +624,7 @@ export function TreeCanvas() {
       const box = liveBoxRef.current;
       liveBoxRef.current = null;
       if (box && box.w > 4 && box.h > 4) {
-        addBox({ ...box, color: strokeColor });
+        putBox({ ...box, color: strokeColor });
       }
       setLiveBox(null);
     }
@@ -460,7 +633,7 @@ export function TreeCanvas() {
       const conn = liveConnectorRef.current;
       liveConnectorRef.current = null;
       if (conn && Math.hypot(conn.endX - conn.startX, conn.endY - conn.startY) > 6) {
-        addConnector({ ...conn, color: strokeColor });
+        putConnector({ ...conn, color: strokeColor });
       }
       setLiveConnector(null);
     }
@@ -511,7 +684,7 @@ export function TreeCanvas() {
     const p1 = getElementCenter(selectedIds[0]);
     const p2 = getElementCenter(selectedIds[1]);
     if (p1 && p2) {
-      addConnector({
+      putConnector({
         startX: p1.x,
         startY: p1.y,
         endX: p2.x,
@@ -520,7 +693,9 @@ export function TreeCanvas() {
       });
       select(null);
     }
-  }, [selectedIds, getElementCenter, addConnector, strokeColor, select]);
+    // `presenting` decides whether the arrow is scratch ink or part of the deck.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedIds, getElementCenter, addConnector, strokeColor, select, presenting]);
 
   // ----- Keyboard: Delete selected, Ctrl+Z / Ctrl+Y undo/redo -----
   useEffect(() => {
@@ -559,13 +734,16 @@ export function TreeCanvas() {
         }
       }
       if ((e.key === 'Delete' || e.key === 'Backspace') && selectedIds.length > 0) {
+        // Locked: annotations are still the presenter's to erase, nodes are not.
+        const targets = locked ? selectedIds.filter((id) => annotationIds.has(id)) : selectedIds;
+        if (targets.length === 0) return;
         e.preventDefault();
-        deleteMultiple(selectedIds);
+        deleteMultiple(targets);
       }
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [editing, editingNote, selectedId, selectedIds, deleteMultiple, undo, redo, annotations, removeAnnotation, select, connectSelected]);
+  }, [editing, editingNote, selectedId, selectedIds, deleteMultiple, undo, redo, annotations, removeAnnotation, select, connectSelected, locked, annotationIds]);
 
   const beginEdit = (n: PositionedNode) => {
     setEditing({ id: n.id, value: n.label });
@@ -592,13 +770,14 @@ export function TreeCanvas() {
     if (currentNote.id) {
       updateNote(currentNote.id, { text });
     } else if (text) {
-      addNote({ x: currentNote.x, y: currentNote.y, text, color: strokeColor });
+      putNote({ x: currentNote.x, y: currentNote.y, text, color: strokeColor });
     }
     setEditingNote(null);
   };
 
   // ----- Drag-and-drop preset onto a node -----
   const onNodeDragOver = (e: React.DragEvent, id: string) => {
+    if (locked) return;
     if (
       e.dataTransfer.types.includes('application/x-preset') ||
       e.dataTransfer.types.includes('application/x-symbol')
@@ -608,6 +787,7 @@ export function TreeCanvas() {
     }
   };
   const onNodeDrop = (e: React.DragEvent, id: string) => {
+    if (locked) return;
     const rawPreset = e.dataTransfer.getData('application/x-preset');
     const rawSymbol = e.dataTransfer.getData('application/x-symbol') || e.dataTransfer.getData('text/plain');
     setDropTarget(null);
@@ -660,6 +840,7 @@ export function TreeCanvas() {
       ref={wrapRef}
       onDragOver={(e) => {
         // Allow dropping on empty canvas to seed/attach to root.
+        if (locked) return;
         if (
           e.dataTransfer.types.includes('application/x-preset') ||
           e.dataTransfer.types.includes('application/x-symbol')
@@ -668,7 +849,7 @@ export function TreeCanvas() {
         }
       }}
       onDrop={(e) => {
-        if (dropTarget) return;
+        if (locked || dropTarget) return;
         const rawPreset = e.dataTransfer.getData('application/x-preset');
         const rawSymbol = e.dataTransfer.getData('application/x-symbol') || e.dataTransfer.getData('text/plain');
         e.preventDefault();
@@ -695,7 +876,7 @@ export function TreeCanvas() {
     >
       <svg
         ref={svgEl}
-        className={`canvas-svg tool-${tool}`}
+        className={`canvas-svg tool-${tool}${locked ? ' locked' : ''}`}
         style={{ cursor: cursorFor[tool] }}
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
@@ -715,7 +896,9 @@ export function TreeCanvas() {
             return (
               <line
                 key={`${edge.parentId}-${edge.childId}`}
-                className="connector"
+                // A branch belongs to the child it leads down to, so it appears
+                // exactly when that child does.
+                className={`connector${isHidden(child) ? ' unrevealed' : ''}`}
                 x1={edge.from.x}
                 y1={edgeStartY(parent)}
                 x2={edge.to.x}
@@ -728,14 +911,16 @@ export function TreeCanvas() {
             );
           })}
           {layout?.nodes.map((n) => {
-            const selected = selectedIds.includes(n.id);
+            const selected = selectedIds.includes(n.id) && !locked;
             const isDrop = n.id === dropTarget;
             const box = nodeBox(n);
+            const hidden = isHidden(n);
             return (
               <g
                 key={n.id}
-                className={`tnode-group${tool === 'erase' ? ' erasable' : ''}`}
+                className={`tnode-group${tool === 'erase' && !locked ? ' erasable' : ''}${hidden ? ' unrevealed' : ''}`}
                 onPointerDown={(e) => {
+                  if (locked) return; // structure is read-only; let the canvas pan
                   if (tool === 'erase') {
                     e.stopPropagation();
                     deleteMultiple([n.id]);
@@ -746,7 +931,7 @@ export function TreeCanvas() {
                   select(n.id, e.ctrlKey || e.metaKey);
                 }}
                 onDoubleClick={(e) => {
-                  if (tool !== 'select') return;
+                  if (locked || tool !== 'select') return;
                   e.stopPropagation();
                   beginEdit(n);
                 }}
@@ -803,7 +988,10 @@ export function TreeCanvas() {
           {annotations.strokes.map((s) => {
             const selected = selectedIds.includes(s.id);
             return (
-              <g key={s.id} className={tool === 'erase' ? 'erasable-group' : ''}>
+              <g
+                key={s.id}
+                className={`ann-group${tool === 'erase' ? ' erasable-group' : ''}${isAnnotationHidden(s) ? ' unrevealed' : ''}`}
+              >
                 {/* Thick transparent polyline for easier hit testing */}
                 <polyline
                   points={s.points.map((p) => `${p.x},${p.y}`).join(' ')}
@@ -860,7 +1048,7 @@ export function TreeCanvas() {
             editingNote?.id === n.id ? null : (
               <text
                 key={n.id}
-                className={`note${tool === 'erase' ? ' erasable' : ''}${selectedIds.includes(n.id) ? ' selected' : ''}`}
+                className={`note${tool === 'erase' ? ' erasable' : ''}${selectedIds.includes(n.id) ? ' selected' : ''}${isAnnotationHidden(n) ? ' unrevealed' : ''}`}
                 style={{ fill: n.color || 'var(--accent)' }}
                 x={n.x}
                 y={n.y}
@@ -899,7 +1087,7 @@ export function TreeCanvas() {
           {(annotations.boxes || []).map((b) => (
             <rect
               key={b.id}
-              className={`box-annotation${tool === 'erase' ? ' erasable' : ''}${tool === 'select' ? ' selectable' : ''}${selectedIds.includes(b.id) ? ' selected' : ''}`}
+              className={`box-annotation${tool === 'erase' ? ' erasable' : ''}${tool === 'select' ? ' selectable' : ''}${selectedIds.includes(b.id) ? ' selected' : ''}${isAnnotationHidden(b) ? ' unrevealed' : ''}`}
               x={b.x}
               y={b.y}
               width={b.w}
@@ -946,20 +1134,13 @@ export function TreeCanvas() {
 
           {/* ----- Annotation layer: connectors (arrows) ----- */}
           {(annotations.connectors || []).map((c) => {
-            const angle = Math.atan2(c.endY - c.startY, c.endX - c.startX);
-            const arrowLength = 10;
-            const arrowAngle = Math.PI / 6;
-            const x3 = c.endX - arrowLength * Math.cos(angle - arrowAngle);
-            const y3 = c.endY - arrowLength * Math.sin(angle - arrowAngle);
-            const x4 = c.endX - arrowLength * Math.cos(angle + arrowAngle);
-            const y4 = c.endY - arrowLength * Math.sin(angle + arrowAngle);
-            const arrowPath = `M ${x3} ${y3} L ${c.endX} ${c.endY} L ${x4} ${y4}`;
+            const arrowPath = arrowHeadPath(c);
             const selected = selectedIds.includes(c.id);
 
             return (
               <g
                 key={c.id}
-                className={tool === 'erase' ? 'erasable-group' : ''}
+                className={`ann-group${tool === 'erase' ? ' erasable-group' : ''}${isAnnotationHidden(c) ? ' unrevealed' : ''}`}
                 onPointerDown={(e) => {
                   if (tool === 'erase') {
                     e.stopPropagation();
@@ -1010,41 +1191,119 @@ export function TreeCanvas() {
               </g>
             );
           })}
-          {liveConnector && (() => {
-            const angle = Math.atan2(liveConnector.endY - liveConnector.startY, liveConnector.endX - liveConnector.startX);
-            const arrowLength = 10;
-            const arrowAngle = Math.PI / 6;
-            const x3 = liveConnector.endX - arrowLength * Math.cos(angle - arrowAngle);
-            const y3 = liveConnector.endY - arrowLength * Math.sin(angle - arrowAngle);
-            const x4 = liveConnector.endX - arrowLength * Math.cos(angle + arrowAngle);
-            const y4 = liveConnector.endY - arrowLength * Math.sin(angle + arrowAngle);
-            const arrowPath = `M ${x3} ${y3} L ${liveConnector.endX} ${liveConnector.endY} L ${x4} ${y4}`;
+          {liveConnector && (
+            <g>
+              <line
+                x1={liveConnector.startX}
+                y1={liveConnector.startY}
+                x2={liveConnector.endX}
+                y2={liveConnector.endY}
+                stroke={strokeColor}
+                strokeWidth={2}
+              />
+              <path
+                d={arrowHeadPath(liveConnector)}
+                fill="none"
+                stroke={strokeColor}
+                strokeWidth={2}
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </g>
+          )}
 
-            return (
-              <g>
-                <line
-                  x1={liveConnector.startX}
-                  y1={liveConnector.startY}
-                  x2={liveConnector.endX}
-                  y2={liveConnector.endY}
-                  stroke={strokeColor}
-                  strokeWidth={2}
-                />
-                <path
-                  d={arrowPath}
+          {/* ----- Scratch ink: drawn during the lecture, never saved ----- */}
+          {hasScratch && (
+            <g className="scratch-layer">
+              {scratch.strokes.map((s) => (
+                <polyline
+                  key={s.id}
+                  className={`stroke${tool === 'erase' ? ' erasable' : ''}`}
+                  points={s.points.map((p) => `${p.x},${p.y}`).join(' ')}
+                  stroke={s.color}
+                  strokeWidth={s.width}
+                  strokeOpacity={s.opacity ?? 1}
                   fill="none"
-                  stroke={strokeColor}
-                  strokeWidth={2}
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
+                  onPointerDown={(e) => {
+                    if (tool !== 'erase') return;
+                    e.stopPropagation();
+                    eraseScratch(s.id);
+                  }}
                 />
-              </g>
-            );
-          })()}
+              ))}
+              {scratch.notes.map((n) => (
+                <text
+                  key={n.id}
+                  className={`note${tool === 'erase' ? ' erasable' : ''}`}
+                  style={{ fill: n.color || 'var(--accent)' }}
+                  x={n.x}
+                  y={n.y}
+                  onPointerDown={(e) => {
+                    if (tool !== 'erase') return;
+                    e.stopPropagation();
+                    eraseScratch(n.id);
+                  }}
+                >
+                  {n.text}
+                </text>
+              ))}
+              {(scratch.boxes ?? []).map((b) => (
+                <rect
+                  key={b.id}
+                  className={`box-annotation${tool === 'erase' ? ' erasable' : ''}`}
+                  x={b.x}
+                  y={b.y}
+                  width={b.w}
+                  height={b.h}
+                  fill="none"
+                  stroke={b.color}
+                  strokeWidth={2}
+                  strokeDasharray="4 3"
+                  rx={4}
+                  onPointerDown={(e) => {
+                    if (tool !== 'erase') return;
+                    e.stopPropagation();
+                    eraseScratch(b.id);
+                  }}
+                />
+              ))}
+              {(scratch.connectors ?? []).map((c) => (
+                <g
+                  key={c.id}
+                  className={tool === 'erase' ? 'erasable-group' : ''}
+                  onPointerDown={(e) => {
+                    if (tool !== 'erase') return;
+                    e.stopPropagation();
+                    eraseScratch(c.id);
+                  }}
+                >
+                  <line
+                    className="connector-line"
+                    x1={c.startX}
+                    y1={c.startY}
+                    x2={c.endX}
+                    y2={c.endY}
+                    stroke={c.color}
+                    strokeWidth={2}
+                  />
+                  <path
+                    className="connector-arrow"
+                    d={arrowHeadPath(c)}
+                    fill="none"
+                    stroke={c.color}
+                    strokeWidth={2}
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </g>
+              ))}
+            </g>
+          )}
         </g>
       </svg>
 
-      {!tree &&
+      {!presenting &&
+        !tree &&
         annotations.strokes.length === 0 &&
         annotations.notes.length === 0 &&
         (!annotations.boxes || annotations.boxes.length === 0) &&
@@ -1176,35 +1435,39 @@ export function TreeCanvas() {
         <button className="btn icon ghost" title="Redo (Ctrl+Y)" disabled={!canRedo} onClick={redo}>
           <RedoIcon />
         </button>
-
-        {hasAnnotations && (
-          <>
-            <span className="toolbar-divider" />
-            <button
-              className="btn icon ghost"
-              title="Clear annotations without changing the tree"
-              aria-label="Clear annotations"
-              onClick={() => {
-                const confirmed = window.confirm(
-                  'Clear all annotations? Your syntax tree will not be changed.',
-                );
-                if (confirmed) {
-                  clearAnnotations();
-                }
-              }}
-            >
-              <ClearAnnotationsIcon />
-            </button>
-          </>
-        )}
-
-        {appMode === 'instructor' && (annotations.notes.length > 0 || annotations.strokes.length > 0) && (
+      {(presenting ? hasScratch : hasAnnotations) && (
+        <>
+        <span className="toolbar-divider" />
+        <button
+          className="btn icon ghost"
+          title={presenting ? 'Clear the ink drawn during this lecture' : 'Clear annotations without changing the tree'}
+          aria-label={presenting ? 'Clear ink' : 'Clear annotations'}
+          onClick={() => {
+            // Presenting: the deck's own annotations are not the presenter's to
+            // wipe — only the ink drawn just now.
+            if (presenting) {
+              setScratch(EMPTY_ANNOTATIONS);
+              return;
+            }
+            const confirmed = window.confirm(
+            'Clear all annotations? Your syntax tree will not be changed.',
+          );
+          if (confirmed) {
+            clearAnnotations();
+          }
+        }}
+        >
+        <ClearAnnotationsIcon />
+        </button>
+        </>
+      )}
+        {!locked && (annotations.notes.length > 0 || annotations.strokes.length > 0) && (
           <>
             <span className="toolbar-divider" />
             <button
               className="btn primary render-drawing"
               disabled={recognizing}
-              title="Convert your drawing into a tree: labels (typed notes or handwriting) become nodes, arrows and straight lines become branches (parent above, child below)"
+              title={`Convert your drawing into a tree: labels (typed notes or handwriting) become nodes, arrows and straight lines become branches (parent above, child below).${tree ? ' Replaces the tree you already have — you will be asked first.' : ''}`}
               onClick={async () => {
                 const ann = useTreeStore.getState().annotations;
                 try {
@@ -1220,6 +1483,17 @@ export function TreeCanvas() {
                   }
                   if (!result.tree) {
                     toast('No labels found — write or type node labels first.', 'error');
+                    return;
+                  }
+                  // Recognition REPLACES the tree. Say so before overwriting one:
+                  // highlighting an existing tree and clicking this would
+                  // otherwise silently swap it for whatever the strokes implied.
+                  if (
+                    tree &&
+                    !window.confirm(
+                      `Replace your current tree ("${tree.label}" and everything under it) with the drawn one?`,
+                    )
+                  ) {
                     return;
                   }
                   applyDrawingResult(result.tree, result.usedIds);

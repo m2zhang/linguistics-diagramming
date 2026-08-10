@@ -50,6 +50,7 @@ export function BracketEditor() {
   const [text, setText] = useState(() => (tree ? serializeBracketPretty(tree) : ''));
   const [isExpanded, setIsExpanded] = useState(false);
   const sidebarOpen = useUiStore((s) => s.sidebarOpen);
+  const locked = useUiStore((s) => s.locked);
   const toggleRightpane = useUiStore((s) => s.toggleRightpane);
   const debounce = useRef<number | undefined>(undefined);
   const lastRevision = useRef(treeRevision);
@@ -113,6 +114,8 @@ export function BracketEditor() {
       <textarea
         spellCheck={false}
         value={text}
+        readOnly={locked}
+        title={locked ? 'Editing is locked' : undefined}
         onChange={(e) => onChange(e.target.value)}
         placeholder="[S [NP [D the] [N cat]] [VP [V sat]]]"
         aria-label="Bracket notation editor"

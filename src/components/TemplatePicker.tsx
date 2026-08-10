@@ -5,6 +5,7 @@ import { useUiStore } from '../store/uiStore';
 export function TemplatePicker() {
   const replaceTree = useTreeStore((s) => s.replaceTree);
   const toast = useUiStore((s) => s.toast);
+  const locked = useUiStore((s) => s.locked);
 
   return (
     <div className="section">
@@ -14,6 +15,8 @@ export function TemplatePicker() {
           <button
             key={t.id}
             className="template"
+            disabled={locked}
+            title={locked ? 'Editing is locked' : undefined}
             onClick={() => {
               replaceTree(templateToTree(t));
               toast(`Loaded "${t.name}"`, 'success');

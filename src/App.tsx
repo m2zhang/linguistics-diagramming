@@ -2,6 +2,8 @@ import { BracketEditor } from './components/BracketEditor';
 import { LatexOutput } from './components/LatexOutput';
 import { NodeInspector } from './components/NodeInspector';
 import { NodeLibrary } from './components/NodeLibrary';
+import { PresentationBar } from './components/PresentationBar';
+import { StepsPanel } from './components/StepsPanel';
 import { SymbolLibrary } from './components/SymbolLibrary';
 import { TemplatePicker } from './components/TemplatePicker';
 import { ToastHost } from './components/ToastHost';
@@ -21,13 +23,15 @@ export default function App() {
   usePersistence();
   useLibraryShortcuts();
 
-  const sidebarOpen = useUiStore((s) => s.sidebarOpen);
-  const rightpaneOpen = useUiStore((s) => s.rightpaneOpen);
   const appMode = useUiStore((s) => s.appMode);
   
   // Detect if we are in grading mode
   const searchParams = new URLSearchParams(window.location.search);
   const isGrading = !!searchParams.get('grade');
+  const presenting = useUiStore((s) => s.presenting);
+  // Presenting always runs edge-to-edge, whatever the panels were set to.
+  const sidebarOpen = useUiStore((s) => s.sidebarOpen) && !presenting;
+  const rightpaneOpen = useUiStore((s) => s.rightpaneOpen) && !presenting;
 
   let gridCols = '';
   if (sidebarOpen && !isGrading) gridCols += '244px ';
@@ -35,8 +39,8 @@ export default function App() {
   if (rightpaneOpen || isGrading) gridCols += ' 340px';
 
   return (
-    <div className="app">
-      <Toolbar />
+    <div className={`app${presenting ? ' presenting' : ''}`}>
+      {presenting ? <PresentationBar /> : <Toolbar />}
       <div className="layout" style={{ gridTemplateColumns: gridCols }}>
         {sidebarOpen && !isGrading && (
           <aside className="sidebar">
@@ -60,6 +64,7 @@ export default function App() {
             ) : (
               <>
                 <NodeInspector />
+                <StepsPanel />
                 <BracketEditor />
                 {appMode === 'instructor' && <LatexOutput />}
               </>

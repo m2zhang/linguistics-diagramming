@@ -7,7 +7,7 @@ import {
   PositionedNode,
 } from '../model/layout';
 import { effectiveStyle, FONT_STACKS, TreeNode } from '../model/types';
-import { useTreeStore } from '../store/treeStore';
+import { currentProjectState } from './projectState';
 
 export interface PreparedSvg {
   svg: SVGSVGElement;
@@ -35,12 +35,9 @@ export function buildExportSvg(tree: TreeNode, opts?: { background?: string | nu
   svg.setAttribute('height', String(layout.height));
   svg.setAttribute('viewBox', `0 0 ${layout.width} ${layout.height}`);
 
-  // Embed the complete project state as a metadata attribute
-  const stateJson = JSON.stringify({
-    tree,
-    annotations: useTreeStore.getState().annotations,
-    version: '1.0'
-  });
+  // Embed the complete project state as a metadata attribute. Step stamps ride
+  // on the nodes themselves, so a re-imported SVG still presents step by step.
+  const stateJson = JSON.stringify(currentProjectState(tree));
   svg.setAttribute('data-syntax-tree-state', stateJson);
 
   const colInternal = cssVar('--node-internal', '#2f3a7a');

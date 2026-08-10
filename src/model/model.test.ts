@@ -113,6 +113,27 @@ describe('toFullDocument', () => {
 });
 
 describe('layoutTree', () => {
+  it('never reveals a node before its parent', () => {
+    // The VP is stamped later than the V beneath it: the V must wait for it,
+    // or a branch would hang in mid-air on stage.
+    const { nodes } = layoutTree({
+      id: 'r',
+      label: 'S',
+      children: [
+        {
+          id: 'vp',
+          label: 'VP',
+          step: 3,
+          children: [{ id: 'v', label: 'V', step: 1, children: [] }],
+        },
+      ],
+    });
+    const byLabel = (l: string) => nodes.find((n) => n.label === l)!;
+    expect(byLabel('S').step).toBe(0);
+    expect(byLabel('VP').step).toBe(3);
+    expect(byLabel('V').step).toBe(3);
+  });
+
   it('gives leaves strictly increasing, non-overlapping x', () => {
     const { tree } = parseBracket(SAMPLE);
     const { nodes } = layoutTree(tree!);
