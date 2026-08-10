@@ -50,6 +50,37 @@
   border-color: var(--accent);
 }
 
+.auth-password-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 100%;
+}
+
+.auth-password-wrapper input {
+  width: 100%;
+  padding-right: 36px;
+}
+
+.auth-password-toggle {
+  position: absolute;
+  right: 8px;
+  background: transparent;
+  border: none;
+  color: var(--text-dim);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px;
+  border-radius: var(--radius-sm);
+  transition: color 0.15s;
+}
+
+.auth-password-toggle:hover {
+  color: var(--text);
+}
+
 .auth-role-group {
   display: flex;
   gap: 8px;

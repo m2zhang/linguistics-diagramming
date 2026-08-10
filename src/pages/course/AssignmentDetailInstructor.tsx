@@ -6,6 +6,7 @@ import { Badge } from '../../components/ui/badge';
 import { Button } from '../../components/ui/button';
 import { ConfirmDialog } from '../../components/ui/confirm-dialog';
 import { BackButton } from '../../components/ui/back-button';
+import { PageHeader } from '../../components/layout/PageHeader';
 import { deleteAssignment, getAssignment, type Assignment } from '../../data/assignments';
 import { useTreeStore } from '../../store/treeStore';
 import { EMPTY_ANNOTATIONS } from '../../model/types';
@@ -68,22 +69,23 @@ export function AssignmentDetailInstructor({ courseId }: { courseId: string }) {
 
   return (
     <div>
-      <BackButton to={`/courses/${courseId}/assignments`} label="Back to assignments" className="mb-4" />
-
-      <div className="mb-4 flex items-start justify-between gap-4">
-        <div>
-          <h2 className="font-[family-name:var(--font-display)] text-xl font-bold">{assignment.title}</h2>
-          <div className="mt-1 flex items-center gap-2">
+      <PageHeader
+        back={<BackButton to={`/courses/${courseId}/assignments`} label="Back to assignments" className="mb-3" />}
+        title={assignment.title}
+        subtitle={
+          <span className="flex items-center gap-2">
             <Badge variant="secondary">{assignment.mode === 'template' ? 'Template' : 'Blank canvas'}</Badge>
             {assignment.dueAt && (
               <span className="text-xs text-text-dim">Due {new Date(assignment.dueAt).toLocaleString()}</span>
             )}
-          </div>
-        </div>
-        <Button variant="destructive" size="sm" onClick={() => setConfirmOpen(true)}>
-          <Trash2 size={14} /> Delete
-        </Button>
-      </div>
+          </span>
+        }
+        actions={
+          <Button variant="destructive" size="sm" onClick={() => setConfirmOpen(true)}>
+            <Trash2 size={14} /> Delete
+          </Button>
+        }
+      />
 
       {assignment.instructions && (
         <Card className="mb-4">

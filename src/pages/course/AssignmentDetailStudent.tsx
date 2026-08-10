@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/ca
 import { Badge } from '../../components/ui/badge';
 import { Button } from '../../components/ui/button';
 import { BackButton } from '../../components/ui/back-button';
+import { PageHeader } from '../../components/layout/PageHeader';
 import { getAssignment, type Assignment } from '../../data/assignments';
 import { getDraft, getMySubmission, type Submission } from '../../data/submissions';
 import { useTreeStore } from '../../store/treeStore';
@@ -69,21 +70,20 @@ export function AssignmentDetailStudent({ courseId }: { courseId: string }) {
 
   return (
     <div>
-      <BackButton to={`/courses/${courseId}/assignments`} label="Back to assignments" className="mb-4" />
-
-      <div className="mb-4 flex items-start justify-between gap-4">
-        <div>
-          <h2 className="font-[family-name:var(--font-display)] text-xl font-bold">{assignment.title}</h2>
-          <div className="mt-1 flex items-center gap-2">
+      <PageHeader
+        back={<BackButton to={`/courses/${courseId}/assignments`} label="Back to assignments" className="mb-3" />}
+        title={assignment.title}
+        subtitle={
+          <span className="flex items-center gap-2">
             <Badge variant="secondary">{assignment.mode === 'template' ? 'Template' : 'Blank canvas'}</Badge>
             {assignment.dueAt && (
               <span className={`text-xs ${overdue ? 'text-danger' : 'text-text-dim'}`}>
                 Due {new Date(assignment.dueAt).toLocaleString()}
               </span>
             )}
-          </div>
-        </div>
-      </div>
+          </span>
+        }
+      />
 
       {assignment.instructions && (
         <Card className="mb-4">

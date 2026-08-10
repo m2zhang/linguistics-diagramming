@@ -39,7 +39,7 @@ export function JoinCourseDialog({ onJoined }: { onJoined: (courseId: string) =>
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button variant="outline">
+        <Button className="bg-white text-accent hover:bg-white/90 font-semibold shadow-sm border border-white/20">
           <LogIn size={16} /> Join course
         </Button>
       </DialogTrigger>

@@ -6,6 +6,7 @@ import { Badge } from '../../components/ui/badge';
 import { AssignmentEditorDialog } from '../../components/assignment/AssignmentEditor';
 import { listAssignments, type Assignment } from '../../data/assignments';
 import { courseColorHex } from '../../lib/courseColors';
+import { PageHeader } from '../../components/layout/PageHeader';
 import { useUiStore } from '../../store/uiStore';
 import type { CourseOutletContext } from './CourseShell';
 
@@ -29,18 +30,25 @@ export function CourseAssignments() {
 
   return (
     <div>
-      <div className="mb-4 flex items-center justify-between">
-        <h2 className="font-[family-name:var(--font-display)] text-lg font-semibold">Assignments</h2>
-        {role === 'instructor' && (
-          <AssignmentEditorDialog
-            courseId={course.id}
-            onCreated={(a) => {
-              setAssignments((prev) => [...(prev ?? []), a]);
-              toast('Assignment created', 'success');
-            }}
-          />
-        )}
-      </div>
+      <PageHeader
+        title="Assignments"
+        subtitle={
+          assignments
+            ? `${assignments.length} ${assignments.length === 1 ? 'assignment' : 'assignments'} in this course`
+            : 'Loading…'
+        }
+        actions={
+          role === 'instructor' && (
+            <AssignmentEditorDialog
+              courseId={course.id}
+              onCreated={(a) => {
+                setAssignments((prev) => [...(prev ?? []), a]);
+                toast('Assignment created', 'success');
+              }}
+            />
+          )
+        }
+      />
 
       {error && <p className="text-sm text-danger">{error}</p>}
       {!error && assignments === null && <p className="text-sm text-text-dim">Loading…</p>}

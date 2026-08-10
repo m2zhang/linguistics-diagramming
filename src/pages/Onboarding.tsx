@@ -1,6 +1,6 @@
 import { FormEvent, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { GraduationCap, Presentation } from 'lucide-react';
+import { GraduationCap, School } from 'lucide-react';
 import { useAuthStore } from '../store/authStore';
 import type { Role } from '../data/authClient';
 import { AuthLayout } from '../components/layout/AuthLayout';
@@ -81,7 +81,7 @@ export function Onboarding() {
             </button>
 
             <button type="button" className="onboard-role" onClick={() => pickRole('instructor')}>
-              <Presentation size={26} />
+              <School size={26} />
               <span className="onboard-role-title">I'm a teacher</span>
               <span className="onboard-role-desc">
                 Create courses, share lesson trees, set assignments, and grade.

@@ -41,7 +41,7 @@ export function CreateCourseDialog({ onCreated }: { onCreated: (course: Course) 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button>
+        <Button className="bg-white text-accent hover:bg-white/90 font-semibold shadow-sm border border-white/20">
           <Plus size={16} /> New course
         </Button>
       </DialogTrigger>

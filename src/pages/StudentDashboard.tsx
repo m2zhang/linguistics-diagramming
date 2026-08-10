@@ -49,14 +49,14 @@ export function StudentDashboard() {
         <DashboardSidebar view={view} onChange={setView} />
         <main className="flex-1 overflow-y-auto px-8 py-6">
           {/* Hero Banner */}
-          <div className="mb-8 relative overflow-hidden rounded-2xl bg-gradient-to-br from-accent to-accent-strong p-8 text-white shadow-lg">
+          <div className="mb-4 relative overflow-hidden rounded-xl bg-gradient-to-r from-accent to-accent-strong px-5 py-3 text-white shadow-sm">
             <div className="absolute top-[-50%] right-[-10%] w-[60%] h-[200%] rounded-full bg-white/10 blur-3xl mix-blend-overlay" />
-            <div className="relative z-10 flex items-center justify-between">
+            <div className="relative z-10 flex items-center justify-between gap-4">
               <div>
-                <h1 className="font-[family-name:var(--font-display)] text-3xl font-extrabold tracking-tight mb-2">
+                <h1 className="font-[family-name:var(--font-display)] text-lg font-bold tracking-tight mb-0.5">
                   Welcome back, {user?.displayName}!
                 </h1>
-                <p className="text-white/90 text-sm">
+                <p className="text-white/85 text-xs">
                   {view === 'mine' ? 'Access lectures, materials, and assignments for your courses.' : view === 'favorites' ? 'Your pinned favorite courses.' : 'Your archived courses.'}
                 </p>
               </div>

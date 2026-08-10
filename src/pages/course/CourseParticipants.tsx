@@ -6,6 +6,7 @@ import { Badge } from '../../components/ui/badge';
 import { Button } from '../../components/ui/button';
 import { ProfileAvatar } from '../../components/ui/avatar';
 import { Card, CardContent } from '../../components/ui/card';
+import { PageHeader } from '../../components/layout/PageHeader';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../components/ui/table';
 import { getRoster, regenerateJoinCode, removeStudent, updateParticipantRole, type RosterEntry } from '../../data/courses';
 import { useUiStore } from '../../store/uiStore';
@@ -106,24 +107,28 @@ export function CourseParticipants() {
 
   return (
     <div>
-      <div className="mb-4 flex items-center justify-between gap-4">
-        <div>
-          <h2 className="font-[family-name:var(--font-display)] text-lg font-semibold">Participants</h2>
-          <p className="text-sm text-text-dim">{participants ? participants.length : '…'} people in this course</p>
-        </div>
-        <div className="relative w-64">
-          <Search size={14} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-text-faint" />
-          <Input
-            placeholder="Search people…"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            className="pl-8"
-          />
-        </div>
-      </div>
+      <PageHeader
+        title="Participants"
+        subtitle={
+          participants
+            ? `${participants.length} ${participants.length === 1 ? 'person' : 'people'} in this course`
+            : 'Loading…'
+        }
+        actions={
+          <div className="relative w-64">
+            <Search size={14} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-text-faint" />
+            <Input
+              placeholder="Search people…"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              className="pl-8"
+            />
+          </div>
+        }
+      />
 
       {role === 'instructor' && (
-        <Card className="mb-5">
+        <Card className="mb-4">
           <CardContent className="flex flex-wrap items-center justify-between gap-4 pt-4">
             <div className="flex items-center gap-3">
               <span className="flex h-9 w-9 items-center justify-center rounded-[var(--radius-sm)] bg-accent-soft text-accent">
@@ -156,56 +161,58 @@ export function CourseParticipants() {
       )}
 
       {filtered && filtered.length > 0 && (
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Name</TableHead>
-              <TableHead>Email</TableHead>
-              <TableHead>Role</TableHead>
-              <TableHead>Joined</TableHead>
-              {role === 'instructor' && <TableHead />}
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {filtered.map((p) => (
-              <TableRow key={p.id}>
-                <TableCell>
-                  <div className="flex items-center gap-2.5">
-                    <ProfileAvatar seed={p.id} name={p.name} className="h-7 w-7 text-[11px]" />
-                    {p.name}
-                  </div>
-                </TableCell>
-                <TableCell className="text-text-dim">{p.email || '—'}</TableCell>
-                <TableCell>
-                  {role === 'instructor' && p.type !== 'Instructor' ? (
-                    <select
-                      className="rounded-md border border-input bg-background px-2 py-1 text-xs outline-none focus:ring-1 focus:ring-accent"
-                      value={p.type}
-                      onChange={(e) => onRoleChange(p.id, e.target.value as 'Student' | 'TA')}
-                    >
-                      <option value="Student">Student</option>
-                      <option value="TA">TA</option>
-                    </select>
-                  ) : (
-                    <Badge variant={p.type === 'Instructor' ? 'default' : p.type === 'TA' ? 'outline' : 'secondary'}>{p.type}</Badge>
-                  )}
-                </TableCell>
-                <TableCell className="text-text-dim">
-                  {p.joinedAt ? new Date(p.joinedAt).toLocaleDateString() : '—'}
-                </TableCell>
-                {role === 'instructor' && (
+        <Card className="px-2 py-1.5">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Name</TableHead>
+                <TableHead>Email</TableHead>
+                <TableHead>Role</TableHead>
+                <TableHead>Joined</TableHead>
+                {role === 'instructor' && <TableHead className="text-right">Actions</TableHead>}
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {filtered.map((p) => (
+                <TableRow key={p.id}>
+                  <TableCell className="py-2.5 font-medium">
+                    <div className="flex items-center gap-2.5">
+                      <ProfileAvatar seed={p.id} name={p.name} className="h-7 w-7 text-[11px]" />
+                      {p.name}
+                    </div>
+                  </TableCell>
+                  <TableCell className="text-text-dim">{p.email || '—'}</TableCell>
                   <TableCell>
-                    {p.type !== 'Instructor' && (
-                      <Button variant="destructive" size="sm" onClick={() => onRemove(p.id)}>
-                        Remove
-                      </Button>
+                    {role === 'instructor' && p.type !== 'Instructor' ? (
+                      <select
+                        className="rounded-[var(--radius-sm)] border border-border bg-bg-input px-2 py-1 text-xs outline-none focus:ring-1 focus:ring-accent"
+                        value={p.type}
+                        onChange={(e) => onRoleChange(p.id, e.target.value as 'Student' | 'TA')}
+                      >
+                        <option value="Student">Student</option>
+                        <option value="TA">TA</option>
+                      </select>
+                    ) : (
+                      <Badge variant={p.type === 'Instructor' ? 'default' : p.type === 'TA' ? 'outline' : 'secondary'}>{p.type}</Badge>
                     )}
                   </TableCell>
-                )}
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+                  <TableCell className="text-text-dim">
+                    {p.joinedAt ? new Date(p.joinedAt).toLocaleDateString() : '—'}
+                  </TableCell>
+                  {role === 'instructor' && (
+                    <TableCell className="text-right">
+                      {p.type !== 'Instructor' && (
+                        <Button variant="destructive" size="sm" onClick={() => onRemove(p.id)}>
+                          Remove
+                        </Button>
+                      )}
+                    </TableCell>
+                  )}
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </Card>
       )}
     </div>
   );

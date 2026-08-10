@@ -1,5 +1,6 @@
 import { FormEvent, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { Eye, EyeOff } from 'lucide-react';
 import { TreeLogo } from '../components/icons';
 import { AuthLayout } from '../components/layout/AuthLayout';
 import { updatePassword } from '../data/authClient';
@@ -7,6 +8,7 @@ import { updatePassword } from '../data/authClient';
 export function ResetPasswordScreen() {
   const navigate = useNavigate();
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -60,15 +62,25 @@ export function ResetPasswordScreen() {
         <form onSubmit={onSubmit}>
           <div className="auth-field">
             <label htmlFor="new-password">New Password</label>
-            <input
-              id="new-password"
-              type="password"
-              autoComplete="new-password"
-              required
-              minLength={8}
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-            />
+            <div className="auth-password-wrapper">
+              <input
+                id="new-password"
+                type={showPassword ? 'text' : 'password'}
+                autoComplete="new-password"
+                required
+                minLength={8}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+              />
+              <button
+                type="button"
+                className="auth-password-toggle"
+                onClick={() => setShowPassword((prev) => !prev)}
+                title={showPassword ? 'Hide password' : 'Show password'}
+              >
+                {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+              </button>
+            </div>
           </div>
 
           <button type="submit" className="btn primary auth-submit" disabled={submitting}>

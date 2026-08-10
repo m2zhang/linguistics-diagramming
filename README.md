@@ -1,187 +1,113 @@
 # SyntaxTree — Linguistics Tree Editor & Course Platform
 
-A web app for building, editing and exporting linguistic syntax trees, with a
-full classroom layer on top: instructors run courses made of lectures and
-assignments; students join by code, work in the same tree canvas, and submit
-for grading.
+A modern web application for building, editing, and exporting linguistic syntax trees, featuring a complete classroom platform: instructors manage courses with lectures and assignments; students join via course code, work in the tree canvas, and submit assignments for grading.
 
-Two pieces run together in development:
+---
 
-- **Frontend** — React + Vite + TypeScript single-page app (`src/`). The tree
-  editor itself (canvas, bracket notation, LaTeX, exports) needs no backend
-  and no login.
-- **Backend** — Node/Express + PostgreSQL API (`server/`) that adds accounts,
-  courses, lectures, assignments, drafts, submissions and grading on top of
-  the editor.
+## Architecture Overview
+
+SyntaxTree uses a modern client-first architecture powered by **React + Vite** and **Supabase**:
+
+- **Frontend**: React 18, Vite, TypeScript, Tailwind CSS, Zustand, and SVG rendering.
+- **Backend / Database**: Supabase (PostgreSQL with Row Level Security & Supabase Auth).
+- **Authentication**: Email/password authentication & Google OAuth via Supabase Auth.
+
+---
 
 ## Features
 
-### Tree editor (works standalone, no account needed)
+### 🌳 Tree Editor (Standalone or Integrated)
+- **Live Dual-Input Engine**: Paste bracket notation (`[S [NP [D the] [N cat]] [VP [V sat]]]`) to render trees live; canvas edits automatically update bracket notation text.
+- **Interactive SVG Canvas**: Drag to pan, wheel to zoom, fit-to-view, click to select, double-click to rename inline, `Delete` to remove nodes.
+- **Drag-and-Drop Node Library**: Node Down, Binary, and Ternary branch presets.
+- **Symbol & Template Libraries**: NP, VP, PP, CP, and full sentence templates, plus X-bar, trace, and feature symbol sets.
+- **Export Options**: PNG, Vector PDF, SVG, and copyable LaTeX (`qtree`).
+- **Photo → Tree (Experimental)**: Client-side OCR pipeline (Tesseract.js) to infer tree structure from hand-drawn diagrams.
+- **Role-Gated Tools**: Basic tools for students, full advanced toolsets (including LaTeX output) for instructors.
 
-- **Dual-input engine** — paste bracket notation (`[S [NP [D the] [N cat]] [VP [V sat]]]`)
-  and the tree renders live; edits on the canvas write back to the text.
-- **SVG canvas** — pan (drag), zoom (wheel), fit-to-view; click to select,
-  double-click to rename inline, `Delete` to remove a node (children reattach).
-- **Drag-and-drop node library** — Node Down / Binary / Ternary presets.
-- **Templates** — NP, VP, PP, CP and a full sentence starter.
-- **Export** — PNG, vector PDF, SVG, and copy-to-clipboard LaTeX.
-- **Session persistence** — work survives a page refresh (`sessionStorage`).
-- **Photo → Tree (experimental)** — upload a photo of a hand-drawn tree; fully
-  client-side OCR (Tesseract.js) + heuristic structure inference produces a
-  best-guess tree to correct on the canvas. No upload, no API.
-- **Dark-mode-first** UI with light-mode toggle; Inter / Montserrat typography.
-- **Student / instructor modes** — the canvas toolset is gated by role: basic
-  drawing tools and phrasal/lexical symbols for students, the full advanced
-  toolset (drawing tools, X-bar/traces/features symbol sets, LaTeX panel) for
-  instructors.
+### 🎓 Classroom & Course Management
+- **User Roles & Onboarding**: Students, Instructors, and TAs (Teaching Assistants get instructor-level course access).
+- **Course Enrollment**: Instructors create courses and share join codes; students enroll instantly.
+- **Lectures & Materials**: Shared lesson trees and downloadable file attachments (PDFs, images).
+- **Assignments with Max Grades**: Blank canvas or template-based starting trees. Instructors set custom max points (e.g., out of 10 or 100).
+- **Protected Student Workspace**: Student edits create isolated private drafts and submissions; instructor-shared templates and lecture trees are read-only and fully protected.
+- **Dedicated Grading Panel**:
+  - Hides left panels during grading for maximum canvas workspace.
+  - Dedicated right panel displaying student details, score out of max points, feedback input, and one-click navigation across class submissions.
 
-### Course platform (requires an account + the backend running)
+---
 
-- **Accounts** — email/password signup as a student or instructor.
-- **Courses** — instructors create courses and get a join code; students join
-  with the code. Per-user course preferences (color, favorite, archive) live
-  on the viewer's dashboard only, not on the course itself.
-- **Lectures** — notes, one or more shared lesson trees (built in the same
-  canvas), and uploaded materials (PDFs, images, etc.) students can download.
-- **Assignments** — blank-canvas or template-based (instructor attaches a
-  starting tree students pull into their own copy). Student work autosaves as
-  a draft and is explicitly submitted when ready.
-- **Grading** — instructors open a submission read-only in the canvas, leave
-  a grade + feedback, and step through the class roster with Previous / Next
-  / "next ungraded" without leaving the editor.
-- **Context-aware navigation** — opening the canvas from a lecture,
-  assignment, or grading queue always returns you to that exact page, not a
-  generic dashboard.
+## Getting Started
 
-## Tech stack
+### Prerequisites
+- **Node.js**: v18.x or higher
+- **npm**: v9.x or higher
+- **Supabase Account** (or a local Supabase CLI instance)
 
-**Frontend:** React + Vite + TypeScript · React Router · Zustand (state) ·
-Tailwind CSS v4 + hand-built shadcn-style UI primitives (Radix underneath) ·
-SVG rendering · jsPDF + svg2pdf.js (PDF) · Tesseract.js (OCR, lazy-loaded).
-
-**Backend:** Node + Express + TypeScript · PostgreSQL via `pg` (raw SQL, no
-ORM) · `node-pg-migrate` for schema migrations · `express-session` +
-`connect-pg-simple` (Postgres-backed cookie sessions) · `bcrypt` for
-passwords · `multer` for file uploads (stored on local disk) · `zod` for
-request validation.
-
-## Prerequisites
-
-- Node.js 18+
-- A local PostgreSQL server (native install, e.g. via `winget install
-  PostgreSQL.PostgreSQL.16` on Windows, or your OS package manager — no
-  Docker required)
-
-## One-time setup
-
-1. **Create the database.** In `psql` or pgAdmin, as a superuser:
-
-   ```sql
-   CREATE USER syntaxtree_dev WITH PASSWORD 'devpassword';
-   CREATE DATABASE syntaxtree_dev OWNER syntaxtree_dev;
-   \c syntaxtree_dev
-   CREATE EXTENSION citext;
-   CREATE EXTENSION pgcrypto;
-   ```
-
-2. **Install dependencies** (frontend + backend):
-
+### 1. Environment Setup
+1. Copy `.env.example` to `.env.local`:
    ```bash
-   npm install
-   npm run server:install
+   cp .env.example .env.local
+   ```
+2. Fill in your Supabase project credentials in `.env.local`:
+   ```env
+   VITE_SUPABASE_URL=https://your-project-ref.supabase.co
+   VITE_SUPABASE_PUBLISHABLE_KEY=your-supabase-anon-key
    ```
 
-3. **Configure the backend.** Copy `server/.env.example` to `server/.env` and
-   fill in real values (a working default matching step 1 is already there —
-   at minimum replace `SESSION_SECRET`):
+### 2. Database Migration (Supabase)
+Run the SQL files in `supabase/migrations/` in order against your Supabase database:
+- `0001_initial_schema.sql`
+- `0002_onboarding.sql`
 
-   ```bash
-   cd server
-   cp .env.example .env       # Windows: copy .env.example .env
-   cd ..
-   ```
+*(You can paste these into the Supabase Dashboard SQL Editor, or use the Supabase CLI: `npx supabase db push`)*
 
-4. **Run migrations** to create all tables:
-
-   ```bash
-   npm run server:migrate
-   ```
-
-## Develop
+### 3. Installation & Local Development
+Install dependencies and launch the dev server:
 
 ```bash
-npm run dev        # starts Vite (:5173) + the Express API (:4000) together
+# Install dependencies
+npm install
+
+# Start local development server
+npm run dev
 ```
 
-The Vite dev server proxies `/api/*` requests to the Express server, so the
-frontend always calls relative `/api/...` paths. Open
-[http://localhost:5173](http://localhost:5173) — the tree editor works
-immediately; sign up (as a student or instructor) to reach the course
-platform.
+Open [http://localhost:5173](http://localhost:5173) in your browser.
 
-Other useful commands:
+---
+
+## Useful Commands
 
 ```bash
-npm run dev:web            # frontend only, no backend (editor still works)
-npm run dev:api            # backend only
-npm test                   # vitest — frontend unit tests (parser/serializer/layout)
-npm --prefix server test   # vitest — backend route/middleware tests
-npm run build               # tsc -b + vite build → static output in dist/
-npm run server:migrate      # apply new backend migrations
+npm run dev        # Starts Vite dev server (:5173)
+npm run build      # Typechecks (tsc -b) and builds production bundle in dist/
+npm run preview    # Previews the production build locally
+npm test           # Runs Vitest unit tests for parser, serializer, and layout
 ```
 
-## Project structure
+---
+
+## Project Structure
 
 ```
 linguistics-diagramming/
-  src/                        # frontend SPA
-    components/                # editor canvas, toolbar, symbol/node libraries,
-                                # course/lecture/assignment/submission UI, ui/ primitives
-    pages/                      # dashboards, course pages, profile
-    auth/                       # login/signup screens, AuthGate, useUser
-    data/                       # typed fetch wrappers for the REST API
-    store/                      # Zustand stores (tree, auth, ui)
-    model/                      # TreeNode, bracket parser, layout engine
-    export/                     # PNG/PDF/SVG export, ProjectState (wire format)
-    vision/                     # photo → tree OCR pipeline
-  server/                      # backend API
-    src/
-      routes/                   # auth, courses, lectures, materials, assignments, submissions
-      middleware/                # session, requireAuth, requireRole, ownership checks
-      migrations/                 # node-pg-migrate files (raw SQL)
-      db/pool.ts                  # pg.Pool singleton
-    uploads/                    # uploaded lecture/assignment materials (gitignored)
+├── src/
+│   ├── auth/              # AuthGate, Signup, Login, Onboarding screens
+│   ├── components/        # Tree canvas, toolbar, node/symbol libraries, layout primitives
+│   │   ├── assignment/    # AssignmentEditor, AssignmentWorkBanner, GradingPanel
+│   │   ├── course/        # Course headers, participant views, dialogs
+│   │   ├── layout/        # AppHeader, AuthLayout, CourseSidebar, DashboardSidebar
+│   │   └── ui/            # Reusable UI components (buttons, cards, badges, inputs)
+│   ├── data/              # Typed Supabase client API wrappers (auth, courses, assignments, etc.)
+│   ├── export/            # PNG / PDF / SVG export logic & ProjectState serialization
+│   ├── hooks/             # Custom hooks (autosave, persistence, UI state)
+│   ├── lib/               # Supabase client initialization & helper utilities
+│   ├── model/             # TreeNode data structure, bracket parser, layout engine
+│   ├── pages/             # Dashboard, Course pages, Profile, SubmissionReview
+│   └── store/             # Zustand state management (treeStore, authStore, uiStore)
+├── supabase/
+│   └── migrations/        # SQL schema & RLS policy migrations
+├── package.json
+└── README.md
 ```
-
-## Architecture
-
-The **tree model** (`src/model/types.ts`) is the single source of truth. Bracket
-text, the SVG canvas, and LaTeX are all projections of it:
-
-```
-bracket text ──parse──► TreeNode ──layout──► positioned SVG
-     ▲                      │
-     └──── serialize ───────┴──── serialize ──► LaTeX (qtree)
-```
-
-Key frontend modules: `model/bracketParser.ts`, `model/layout.ts`
-(tidy-tree), `store/treeStore.ts` (Zustand actions), `components/TreeCanvas.tsx`.
-
-A tree (plus freehand annotations) serializes to a single JSON shape,
-`ProjectState` (`src/export/projectState.ts`). That's the one wire format
-used everywhere a tree crosses the network: lecture trees, assignment
-templates, student drafts, and submissions are all just a `ProjectState`
-stored in a Postgres `jsonb` column.
-
-**Auth & authorization** is session-based (no JWTs): `express-session` with
-`connect-pg-simple` stores sessions in Postgres, so logout/revocation is
-trivial. Every mutating backend route re-checks ownership/enrollment in SQL
-(`server/src/middleware/ownership.ts`) — there's no ORM-level or
-database-level (RLS) safety net, so authorization lives entirely in the route
-handlers.
-
-**Data model** (see `server/src/migrations/`): `users` → `courses` (with a
-join code) → `enrollments` → `lectures` → `lecture_trees` / `materials` →
-`assignments` → `drafts` (one autosaved row per student per assignment) →
-`submissions` (insert-only; resubmitting adds a new row, grading is
-`grade`/`feedback`/`graded_by` columns on it).

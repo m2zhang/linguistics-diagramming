@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/ca
 import { Button } from '../../components/ui/button';
 import { ConfirmDialog } from '../../components/ui/confirm-dialog';
 import { BackButton } from '../../components/ui/back-button';
+import { PageHeader } from '../../components/layout/PageHeader';
 import { MaterialUpload } from '../../components/lecture/MaterialUpload';
 import { AddTreeDialog } from '../../components/lecture/AddTreeDialog';
 import { deleteLecture, deleteLectureTree, getLecture, type LectureDetail as LectureDetailData } from '../../data/lectures';
@@ -84,16 +85,17 @@ export function LectureDetail() {
 
   return (
     <div>
-      <BackButton to={`/courses/${course.id}/lectures`} label="Back to lectures" className="mb-4" />
-
-      <div className="mb-6 flex items-start justify-between gap-4">
-        <h2 className="font-[family-name:var(--font-display)] text-xl font-bold">{lecture.title}</h2>
-        {role === 'instructor' && (
-          <Button variant="destructive" size="sm" onClick={() => setConfirmOpen(true)}>
-            <Trash2 size={14} /> Delete lecture
-          </Button>
-        )}
-      </div>
+      <PageHeader
+        back={<BackButton to={`/courses/${course.id}/lectures`} label="Back to lectures" className="mb-3" />}
+        title={lecture.title}
+        actions={
+          role === 'instructor' && (
+            <Button variant="destructive" size="sm" onClick={() => setConfirmOpen(true)}>
+              <Trash2 size={14} /> Delete lecture
+            </Button>
+          )
+        }
+      />
 
       {lecture.notes && (
         <Card className="mb-4">

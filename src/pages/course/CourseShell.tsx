@@ -1,6 +1,6 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type CSSProperties } from 'react';
 import { Outlet, useParams } from 'react-router-dom';
-import { GraduationCap } from 'lucide-react';
+import { GraduationCap, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
 import { AppHeader } from '../../components/layout/AppHeader';
 import { CourseSidebar } from '../../components/layout/CourseSidebar';
 import { BackButton } from '../../components/ui/back-button';
@@ -32,6 +32,32 @@ export function CourseShell() {
     : user?.role;
     
   const [collapsed, setCollapsed] = useState(false);
+  const [width, setWidth] = useState(288);
+  const [isResizing, setIsResizing] = useState(false);
+
+  const startResizing = (e: React.MouseEvent) => {
+    e.preventDefault();
+    setIsResizing(true);
+
+    const onMouseMove = (moveEvent: MouseEvent) => {
+      const newWidth = moveEvent.clientX;
+      if (newWidth < 120) {
+        setCollapsed(true);
+      } else {
+        setCollapsed(false);
+        setWidth(Math.min(Math.max(newWidth, 180), 450));
+      }
+    };
+
+    const onMouseUp = () => {
+      setIsResizing(false);
+      window.removeEventListener('mousemove', onMouseMove);
+      window.removeEventListener('mouseup', onMouseUp);
+    };
+
+    window.addEventListener('mousemove', onMouseMove);
+    window.addEventListener('mouseup', onMouseUp);
+  };
 
   const refreshCourse = () => {
     if (!courseId) return;
@@ -70,16 +96,29 @@ export function CourseShell() {
 
       <div className="flex min-h-0 flex-1">
         <aside 
-          className={`relative flex shrink-0 flex-col border-r border-border bg-bg-panel transition-[width] ${collapsed ? 'w-16' : 'w-72'}`}
+          style={{ width: collapsed ? 64 : width }}
+          className={`relative flex shrink-0 flex-col border-r border-border bg-bg-panel select-none ${!isResizing ? 'transition-[width] duration-200' : ''}`}
         >
-          {/* Toggle Button */}
-          <button
-            title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-            onClick={() => setCollapsed((c) => !c)}
-            className="absolute -right-3 top-1/2 -translate-y-1/2 flex h-6 w-6 items-center justify-center rounded-full border border-border bg-bg-elevated text-text-dim shadow-sm transition-colors hover:bg-accent hover:text-white hover:border-accent z-10"
+          {/* Boundary Slider / Resizer Handle */}
+          <div
+            onMouseDown={startResizing}
+            onDoubleClick={() => setCollapsed((c) => !c)}
+            title="Drag boundary to resize sidebar (double-click to toggle)"
+            className="absolute -right-1.5 top-0 bottom-0 w-3 cursor-col-resize flex items-center justify-center group z-20"
           >
-            <div className="text-[10px] font-bold">{collapsed ? '▶' : '◀'}</div>
-          </button>
+            <div className="w-1 h-12 rounded-full bg-border/80 group-hover:bg-accent group-hover:h-16 group-hover:w-1.5 transition-all shadow-sm" />
+          </div>
+
+          {/* Top header bar inside sidebar with toggle */}
+          <div className="flex items-center justify-end p-2 px-3 border-b border-border/40">
+            <button
+              title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+              onClick={() => setCollapsed((c) => !c)}
+              className="flex h-7 w-7 items-center justify-center rounded-md text-text-dim hover:bg-bg-input hover:text-text transition-colors"
+            >
+              {collapsed ? <PanelLeftOpen size={18} /> : <PanelLeftClose size={18} />}
+            </button>
+          </div>
 
           <div className={`p-4 transition-opacity ${collapsed ? 'opacity-0 invisible h-16' : 'opacity-100 visible h-auto'}`}>
             <BackButton to="/dashboard" label="Your courses" className="mb-4" />
@@ -103,18 +142,21 @@ export function CourseShell() {
           <CourseSidebar role={role} collapsed={collapsed} />
         </aside>
 
+        {/* The course colour reaches the pages as `--course-color` rather than
+            as a full-bleed band drawn here: PageHeader paints it as its own
+            rounded panel, so the colour has a shape instead of bleeding to the
+            window edges and stopping at an arbitrary line. Passing it as a
+            custom property means every page picks it up without prop drilling
+            — the assignment pages only receive a courseId, not the course.
+
+            The pages own their cards too; a single wrapper card here made the
+            heading look like that card's title. */}
         <main className="flex-1 overflow-y-auto bg-bg">
-          {/* Colorful Header matching course color */}
-          <div 
-            className="h-32 w-full opacity-80" 
-            style={{ 
-              background: `linear-gradient(to bottom right, ${courseColorHex(course.color)}, transparent)` 
-            }} 
-          />
-          <div className="-mt-20 px-8 pb-8">
-            <div className="rounded-2xl bg-bg-elevated shadow-lg border border-border/50 p-6 min-h-[500px]">
-              <Outlet context={{ course, role, refreshCourse } satisfies CourseOutletContext} />
-            </div>
+          <div
+            className="mx-auto w-full max-w-6xl px-8 pb-12 pt-6"
+            style={{ '--course-color': courseColorHex(course.color) } as CSSProperties}
+          >
+            <Outlet context={{ course, role, refreshCourse } satisfies CourseOutletContext} />
           </div>
         </main>
       </div>

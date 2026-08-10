@@ -5,6 +5,7 @@ import { Card, CardHeader, CardTitle } from '../../components/ui/card';
 import { AddLectureDialog } from '../../components/lecture/AddLectureDialog';
 import { listLectures, type Lecture } from '../../data/lectures';
 import { courseColorHex } from '../../lib/courseColors';
+import { PageHeader } from '../../components/layout/PageHeader';
 import { useUiStore } from '../../store/uiStore';
 import type { CourseOutletContext } from './CourseShell';
 
@@ -24,18 +25,25 @@ export function CourseLectures() {
 
   return (
     <div>
-      <div className="mb-4 flex items-center justify-between">
-        <h2 className="font-[family-name:var(--font-display)] text-lg font-semibold">Lectures</h2>
-        {role === 'instructor' && (
-          <AddLectureDialog
-            courseId={course.id}
-            onCreated={(lecture) => {
-              setLectures((prev) => [...(prev ?? []), lecture]);
-              toast('Lecture created', 'success');
-            }}
-          />
-        )}
-      </div>
+      <PageHeader
+        title="Lectures"
+        subtitle={
+          lectures
+            ? `${lectures.length} ${lectures.length === 1 ? 'lecture' : 'lectures'} in this course`
+            : 'Loading…'
+        }
+        actions={
+          role === 'instructor' && (
+            <AddLectureDialog
+              courseId={course.id}
+              onCreated={(lecture) => {
+                setLectures((prev) => [...(prev ?? []), lecture]);
+                toast('Lecture created', 'success');
+              }}
+            />
+          )
+        }
+      />
 
       {error && <p className="text-sm text-danger">{error}</p>}
       {!error && lectures === null && <p className="text-sm text-text-dim">Loading…</p>}

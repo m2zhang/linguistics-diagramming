@@ -1,17 +1,22 @@
 import { FormEvent, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { Eye, EyeOff, GraduationCap, School } from 'lucide-react';
 import { useAuthStore } from '../store/authStore';
+import type { Role } from '../data/authClient';
 import { TreeLogo } from '../components/icons';
 import { AuthLayout } from '../components/layout/AuthLayout';
 import { GoogleButton } from './GoogleButton';
 
 export function SignupScreen() {
   const signup = useAuthStore((s) => s.signup);
+  const finishOnboarding = useAuthStore((s) => s.finishOnboarding);
   const navigate = useNavigate();
 
   const [displayName, setDisplayName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [role, setRole] = useState<Role>('student');
   const [error, setError] = useState<string | null>(null);
   const [confirmEmail, setConfirmEmail] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -26,8 +31,14 @@ export function SignupScreen() {
         setConfirmEmail(true);
         return;
       }
-      // Role is chosen during onboarding, which AuthGate routes to next.
-      navigate('/onboarding', { replace: true });
+      await finishOnboarding({
+        role,
+        displayName: displayName.trim(),
+        institution: null,
+        program: null,
+        department: null,
+      });
+      navigate('/dashboard', { replace: true });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Sign up failed');
     } finally {
@@ -72,6 +83,26 @@ export function SignupScreen() {
 
         <form onSubmit={onSubmit}>
           <div className="auth-field">
+            <label>I am a</label>
+            <div className="auth-role-group">
+              <button
+                type="button"
+                className={`auth-role-option ${role === 'student' ? 'active' : ''}`}
+                onClick={() => setRole('student')}
+              >
+                <GraduationCap size={16} /> Student
+              </button>
+              <button
+                type="button"
+                className={`auth-role-option ${role === 'instructor' ? 'active' : ''}`}
+                onClick={() => setRole('instructor')}
+              >
+                <School size={16} /> Teacher
+              </button>
+            </div>
+          </div>
+
+          <div className="auth-field">
             <label htmlFor="signup-name">Name</label>
             <input
               id="signup-name"
@@ -95,15 +126,25 @@ export function SignupScreen() {
           </div>
           <div className="auth-field">
             <label htmlFor="signup-password">Password</label>
-            <input
-              id="signup-password"
-              type="password"
-              autoComplete="new-password"
-              minLength={8}
-              required
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-            />
+            <div className="auth-password-wrapper">
+              <input
+                id="signup-password"
+                type={showPassword ? 'text' : 'password'}
+                autoComplete="new-password"
+                minLength={8}
+                required
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+              />
+              <button
+                type="button"
+                className="auth-password-toggle"
+                onClick={() => setShowPassword((prev) => !prev)}
+                title={showPassword ? 'Hide password' : 'Show password'}
+              >
+                {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+              </button>
+            </div>
           </div>
 
           <button type="submit" className="btn primary auth-submit" disabled={submitting}>

@@ -5,6 +5,8 @@ import { Badge } from '../../components/ui/badge';
 import { Button } from '../../components/ui/button';
 import { ProfileAvatar } from '../../components/ui/avatar';
 import { BackButton } from '../../components/ui/back-button';
+import { Card } from '../../components/ui/card';
+import { PageHeader } from '../../components/layout/PageHeader';
 import { ExportMenu } from '../../components/submission/ExportMenu';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../components/ui/table';
 import { listSubmissions, type SubmissionWithStudent } from '../../data/submissions';
@@ -94,99 +96,106 @@ export function SubmissionReview() {
 
   return (
     <div>
-      <BackButton to={`/courses/${course.id}/assignments/${assignmentId}`} label="Back to assignment" className="mb-4" />
-
-      <div className="mb-4 flex items-start justify-between gap-4">
-        <div>
-          <h2 className="font-[family-name:var(--font-display)] text-xl font-bold">
-            Submissions{assignment ? ` — ${assignment.title}` : ''}
-          </h2>
-          <p className="text-sm text-text-dim">
-            {latestByStudent ? `${latestByStudent.length} student${latestByStudent.length === 1 ? '' : 's'} submitted` : '…'}
-          </p>
-        </div>
-        {!!latestByStudent?.length && (
-          <div className="flex items-center gap-2">
-            {firstUngraded && (
-              <Button size="sm" onClick={onGradeNextUngraded}>
-                <SkipForward size={14} /> Grade next ungraded
-              </Button>
-            )}
-            {selected.size > 0 && (
-              <ExportMenu
-                label={`Export selected (${selected.size})`}
-                onExport={(fmt) => exportMany(latestByStudent.filter((s) => selected.has(s.id)), fmt)}
-              />
-            )}
-            <ExportMenu label="Export all" onExport={(fmt) => exportMany(latestByStudent, fmt)} />
-          </div>
-        )}
-      </div>
+      <PageHeader
+        back={
+          <BackButton
+            to={`/courses/${course.id}/assignments/${assignmentId}`}
+            label="Back to assignment"
+            className="mb-3"
+          />
+        }
+        title={`Submissions${assignment ? ` — ${assignment.title}` : ''}`}
+        subtitle={
+          latestByStudent
+            ? `${latestByStudent.length} student${latestByStudent.length === 1 ? '' : 's'} submitted`
+            : 'Loading…'
+        }
+        actions={
+          !!latestByStudent?.length && (
+            <>
+              {firstUngraded && (
+                <Button size="sm" onClick={onGradeNextUngraded}>
+                  <SkipForward size={14} /> Grade next ungraded
+                </Button>
+              )}
+              {selected.size > 0 && (
+                <ExportMenu
+                  label={`Export selected (${selected.size})`}
+                  onExport={(fmt) => exportMany(latestByStudent.filter((s) => selected.has(s.id)), fmt)}
+                />
+              )}
+              <ExportMenu label="Export all" onExport={(fmt) => exportMany(latestByStudent, fmt)} />
+            </>
+          )
+        }
+      />
 
       {latestByStudent?.length === 0 && <p className="text-sm text-text-dim">No submissions yet.</p>}
 
       {latestByStudent && latestByStudent.length > 0 && (
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead className="w-8">
-                <input
-                  type="checkbox"
-                  className="accent-accent"
-                  checked={allSelected}
-                  onChange={toggleAll}
-                  aria-label="Select all"
-                />
-              </TableHead>
-              <TableHead>Student</TableHead>
-              <TableHead>Submitted</TableHead>
-              <TableHead>Grade</TableHead>
-              <TableHead />
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {latestByStudent.map((s) => (
-              <TableRow key={s.id}>
-                <TableCell>
+        <Card className="px-2 py-1.5">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="w-8">
                   <input
                     type="checkbox"
                     className="accent-accent"
-                    checked={selected.has(s.id)}
-                    onChange={() => toggleOne(s.id)}
-                    aria-label={`Select ${s.studentName}`}
+                    checked={allSelected}
+                    onChange={toggleAll}
+                    aria-label="Select all"
                   />
-                </TableCell>
-                <TableCell>
-                  <div className="flex items-center gap-2.5">
-                    <ProfileAvatar seed={s.studentId} name={s.studentName} className="h-7 w-7 text-[11px]" />
-                    {s.studentName}
-                  </div>
-                </TableCell>
-                <TableCell className="text-text-dim">{new Date(s.submittedAt).toLocaleString()}</TableCell>
-                <TableCell>
-                  {s.grade !== null ? (
-                    <Badge variant="success">
-                      {s.grade} {assignment?.maxGrade ? `/ ${assignment.maxGrade}` : ''}
-                    </Badge>
-                  ) : (
-                    <Badge variant="secondary">Ungraded</Badge>
-                  )}
-                </TableCell>
-                <TableCell>
-                  <div className="flex items-center justify-end gap-1.5">
-                    <ExportMenu label="Export" onExport={(fmt) => exportOne(s, fmt)} />
-                    <Button
-                      size="sm"
-                      onClick={() => navigate(`/editor?grade=${s.id}&courseId=${course.id}&assignmentId=${assignmentId}`)}
-                    >
-                      <PenLine size={14} /> Grade
-                    </Button>
-                  </div>
-                </TableCell>
+                </TableHead>
+                <TableHead>Student</TableHead>
+                <TableHead>Submitted</TableHead>
+                <TableHead>Grade</TableHead>
+                <TableHead className="text-right">Actions</TableHead>
               </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+            </TableHeader>
+            <TableBody>
+              {latestByStudent.map((s) => (
+                <TableRow key={s.id}>
+                  <TableCell>
+                    <input
+                      type="checkbox"
+                      className="accent-accent"
+                      checked={selected.has(s.id)}
+                      onChange={() => toggleOne(s.id)}
+                      aria-label={`Select ${s.studentName}`}
+                    />
+                  </TableCell>
+                  <TableCell className="py-2.5 font-medium">
+                    <div className="flex items-center gap-2.5">
+                      <ProfileAvatar seed={s.studentId} name={s.studentName} className="h-7 w-7 text-[11px]" />
+                      {s.studentName}
+                    </div>
+                  </TableCell>
+                  <TableCell className="text-text-dim">{new Date(s.submittedAt).toLocaleString()}</TableCell>
+                  <TableCell>
+                    {s.grade !== null ? (
+                      <Badge variant="success">
+                        {s.grade} {assignment?.maxGrade ? `/ ${assignment.maxGrade}` : ''}
+                      </Badge>
+                    ) : (
+                      <Badge variant="secondary">Ungraded</Badge>
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex items-center justify-end gap-1.5">
+                      <ExportMenu label="Export" onExport={(fmt) => exportOne(s, fmt)} />
+                      <Button
+                        size="sm"
+                        onClick={() => navigate(`/editor?grade=${s.id}&courseId=${course.id}&assignmentId=${assignmentId}`)}
+                      >
+                        <PenLine size={14} /> Grade
+                      </Button>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </Card>
       )}
     </div>
   );
