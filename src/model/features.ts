@@ -24,14 +24,16 @@ export interface FeatureBundle {
 }
 
 /**
- * Reserved tag hues. PEN_COLORS deliberately shares none of these — a red mark
- * on the canvas should never be mistakable for a [+CASE] tag.
+ * The three reserved tag hues — this list is deliberately closed. The sidebar
+ * offers exactly these and no way to add a fourth; see FeatureBundleLibrary.
+ *
+ * PEN_COLORS shares none of these, so a red mark on the canvas is never
+ * mistakable for a [+CASE] tag.
  */
 export const FEATURE_BUNDLES: FeatureBundle[] = [
   { id: 1, label: '+CASE', color: '#dc2626', description: 'Structural case' },
   { id: 2, label: '+past', color: '#2563eb', description: 'Past tense' },
   { id: 3, label: '+wh', color: '#059669', description: 'Wh / interrogative' },
-  { id: 4, label: '+AGR', color: '#7c3aed', description: 'Agreement (φ-features)' },
 ];
 
 /**
@@ -47,9 +49,32 @@ export const PEN_COLORS: { name: string; value: string }[] = [
   { name: 'Slate', value: '#64748b' },
 ];
 
+const PEN_VALUES = new Set(PEN_COLORS.map((c) => c.value.toLowerCase()));
+
+/** Whether a colour came from the fixed palette rather than the custom wheel. */
+export function isPenColor(value: string): boolean {
+  return PEN_VALUES.has(value.toLowerCase());
+}
+
 /**
- * Colours handed to custom features. Also disjoint from PEN_COLORS, so anything
- * rendered as a tag reads as a tag whatever it is called.
+ * The colour a text note may actually be written in.
+ *
+ * The canvas keeps one shared stroke colour across every annotation tool, and
+ * the custom colour wheel — offered for the pen and highlighter — can pick any
+ * hex at all, including a reserved tag hue. Switching to the text tool afterward
+ * would otherwise carry that colour over and put a note on the canvas in
+ * [+CASE] red. Text is confined to PEN_COLORS; anything else snaps back to ink.
+ */
+export function textNoteColor(current: string): string {
+  return isPenColor(current) ? current : PEN_COLORS[0].value;
+}
+
+/**
+ * Colours handed to features that are not one of the three bundles. The sidebar
+ * can no longer create these, but the Node Inspector still lets a feature be
+ * typed onto a node, and older trees may already carry one — so every feature
+ * string still has to resolve to something. Disjoint from PEN_COLORS, so
+ * anything rendered as a tag reads as a tag whatever it is called.
  */
 const CUSTOM_FEATURE_COLORS = ['#0f766e', '#4338ca', '#a16207', '#be123c', '#4d7c0f'];
 
@@ -81,6 +106,20 @@ export function featureColor(label: string): string {
     hash = (hash * 31 + key.charCodeAt(i)) >>> 0;
   }
   return CUSTOM_FEATURE_COLORS[hash % CUSTOM_FEATURE_COLORS.length];
+}
+
+/**
+ * The colour a tagged node itself reads as — its label and its outline — or null
+ * when it carries no features.
+ *
+ * The *first* tag wins rather than a blend or the last one: a node has one
+ * identity at a glance, and scanning a tree for "the case nodes" only works if
+ * that identity is stable when a second tag is added. Each tag line underneath
+ * still renders in its own colour, so nothing is lost on a multi-tag node.
+ */
+export function nodeTagColor(features?: string[]): string | null {
+  const first = features?.[0];
+  return first ? featureColor(first) : null;
 }
 
 /** MIME type for a feature dragged out of the sidebar onto a node. */

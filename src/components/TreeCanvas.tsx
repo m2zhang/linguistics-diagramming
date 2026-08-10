@@ -13,7 +13,13 @@ import { useUiStore } from '../store/uiStore';
 import { drawingToTree, pointToSegment } from '../model/drawingToTree';
 import { sketchToTree } from '../vision/sketchToTree';
 import { effectiveStyle, FONT_STACKS, makeId } from '../model/types';
-import { FEATURE_DND_TYPE, featureColor, PEN_COLORS } from '../model/features';
+import {
+  FEATURE_DND_TYPE,
+  featureColor,
+  nodeTagColor,
+  PEN_COLORS,
+  textNoteColor,
+} from '../model/features';
 import {
   CursorIcon,
   EraserIcon,
@@ -173,6 +179,14 @@ export function TreeCanvas() {
   // which is now [+CASE]'s reserved tag red — a pen must never open on it.
   const [strokeColor, setStrokeColor] = useState(PEN_COLORS[0].value);
   const [customStrokeColor, setCustomStrokeColor] = useState('#ea580c'); //customStrokeColor to remember the latest color changes
+
+  // strokeColor is shared by every annotation tool, and the colour wheel (pen
+  // and highlighter only) can pick any hex — including a reserved tag hue.
+  // Without this, picking [+CASE] red with the highlighter and then switching to
+  // text would write notes in a colour that reads as a tag. See textNoteColor().
+  useEffect(() => {
+    if (tool === 'text') setStrokeColor(textNoteColor);
+  }, [tool]);
   const [panning, setPanning] = useState(false);
   const [liveBox, setLiveBox] = useState<{ x: number; y: number; w: number; h: number } | null>(null);
   const boxStart = useRef<{ x: number; y: number } | null>(null);
@@ -751,10 +765,16 @@ export function TreeCanvas() {
             const selected = selectedIds.includes(n.id);
             const isDrop = n.id === dropTarget;
             const box = nodeBox(n);
+            const tagColor = nodeTagColor(n.features);
             return (
               <g
                 key={n.id}
-                className={`tnode-group${tool === 'erase' ? ' erasable' : ''}`}
+                className={`tnode-group${tool === 'erase' ? ' erasable' : ''}${
+                  tagColor ? ' tagged' : ''
+                }`}
+                // Drives the label fill and the outline stroke from CSS rather
+                // than an inline fill, so :hover still wins the cascade.
+                style={tagColor ? ({ '--tag-color': tagColor } as React.CSSProperties) : undefined}
                 onPointerDown={(e) => {
                   if (tool === 'erase') {
                     e.stopPropagation();
@@ -775,6 +795,20 @@ export function TreeCanvas() {
                 onDragLeave={() => setDropTarget((d) => (d === n.id ? null : d))}
                 onDrop={(e) => onNodeDrop(e, n.id)}
               >
+                {/* Sits outside the selection box rather than under it, so a
+                    tagged node still shows its tag colour while selected.
+                    box.h already includes the feature lines (see nodeBox), so
+                    the outline encloses the tags too. */}
+                {tagColor && (
+                  <rect
+                    className="tnode-tag-outline"
+                    x={box.x - 3}
+                    y={box.y - 3}
+                    width={box.w + 6}
+                    height={box.h + 6}
+                    rx={8}
+                  />
+                )}
                 {(selected || isDrop) && (
                   <rect
                     className={isDrop ? 'drop-indicator' : 'tnode-box'}
@@ -811,9 +845,13 @@ export function TreeCanvas() {
                     fontSize={FEATURE_FONT_SIZE}
                     textAnchor="middle"
                     dominantBaseline="hanging"
-                    // Overrides the --text-dim fill from app.css. Inline rather
-                    // than a class so the same value is what export writes out.
-                    fill={featureColor(f)}
+                    // Inline style, not a fill attribute: `.tnode-feature` sets
+                    // fill in CSS and any rule outranks a presentation
+                    // attribute, which is what left every tag rendering
+                    // --text-dim grey on canvas while exports came out right.
+                    // Per-tag rather than the group's --tag-color, so a node
+                    // carrying [+CASE] and [+past] shows red then blue.
+                    style={{ fill: featureColor(f) }}
                   >
                     [{f}]
                   </text>

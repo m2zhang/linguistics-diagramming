@@ -4,10 +4,11 @@ import {
   FEATURE_FONT_SIZE,
   featureLineY,
   layoutTree,
+  nodeBox,
   PositionedNode,
 } from '../model/layout';
 import { effectiveStyle, FONT_STACKS, TreeNode } from '../model/types';
-import { featureColor } from '../model/features';
+import { featureColor, nodeTagColor } from '../model/features';
 import { useTreeStore } from '../store/treeStore';
 
 export interface PreparedSvg {
@@ -74,6 +75,26 @@ export function buildExportSvg(tree: TreeNode, opts?: { background?: string | nu
 
   for (const n of layout.nodes) {
     const s = effectiveStyle(n.style, n.isLeaf);
+    const tagColor = nodeTagColor(n.features);
+
+    // Mirrors the canvas: a tagged node is outlined in its first tag's colour.
+    // Drawn before the label so the text sits on top. nodeBox().h already spans
+    // the feature lines, and the 3px inset matches TreeCanvas.
+    if (tagColor) {
+      const box = nodeBox(n);
+      const outline = document.createElementNS(NS, 'rect');
+      outline.setAttribute('x', String(box.x - 3));
+      outline.setAttribute('y', String(box.y - 3));
+      outline.setAttribute('width', String(box.w + 6));
+      outline.setAttribute('height', String(box.h + 6));
+      outline.setAttribute('rx', '8');
+      outline.setAttribute('fill', 'none');
+      outline.setAttribute('stroke', tagColor);
+      outline.setAttribute('stroke-width', '1.5');
+      outline.setAttribute('opacity', '0.45');
+      svg.appendChild(outline);
+    }
+
     const text = document.createElementNS(NS, 'text');
     text.setAttribute('x', String(n.x));
     text.setAttribute('y', String(n.y));
@@ -83,7 +104,9 @@ export function buildExportSvg(tree: TreeNode, opts?: { background?: string | nu
     text.setAttribute('font-weight', String(s.fontWeight));
     text.setAttribute('font-family', FONT_STACKS[s.font]);
     if (s.italic) text.setAttribute('font-style', 'italic');
-    text.setAttribute('fill', s.color ?? (n.isLeaf ? colLeaf : colInternal));
+    // Same precedence the canvas applies: an explicit inspector colour wins,
+    // then the tag colour, then the default internal/leaf hue.
+    text.setAttribute('fill', s.color ?? tagColor ?? (n.isLeaf ? colLeaf : colInternal));
     text.textContent = n.label;
     svg.appendChild(text);
 

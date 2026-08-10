@@ -364,6 +364,20 @@
   fill: transparent;
   cursor: pointer;
 }
+/* A tagged node takes its first tag's colour. --tag-color is set on the group
+   by TreeCanvas. This ties with the :hover rules below at (0,3,0), so it MUST
+   stay above them for hover to keep winning on source order — and an explicit
+   inspector colour still beats both, since that lands as an inline style. */
+.tnode-group.tagged .tnode-label {
+  fill: var(--tag-color);
+}
+.tnode-tag-outline {
+  fill: none;
+  stroke: var(--tag-color);
+  stroke-width: 1.5;
+  opacity: 0.45;
+  pointer-events: none;
+}
 .tnode-hit:hover + .tnode-label,
 .tnode-group:hover .tnode-label {
   fill: var(--accent);

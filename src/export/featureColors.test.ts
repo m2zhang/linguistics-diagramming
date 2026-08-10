@@ -22,6 +22,38 @@ describe('exported feature tags', () => {
     ]);
   });
 
+  /** A tagged node reads as tagged at a glance, not just on its tag line. */
+  it('colours a tagged node label and outlines it in the first tag colour', () => {
+    const node = makeNode('T');
+    node.features = ['+past', '+wh'];
+
+    const { svg } = buildExportSvg(node);
+
+    const label = [...svg.querySelectorAll('text')].find((t) => t.textContent === 'T');
+    expect(label?.getAttribute('fill')).toBe('#2563eb'); // +past, the first tag
+
+    const outline = svg.querySelector('rect[stroke]');
+    expect(outline?.getAttribute('stroke')).toBe('#2563eb');
+    expect(outline?.getAttribute('fill')).toBe('none');
+  });
+
+  it('lets an explicit node colour outrank the tag colour', () => {
+    const node = makeNode('T');
+    node.features = ['+CASE'];
+    node.style = { color: '#123456' };
+
+    const { svg } = buildExportSvg(node);
+    const label = [...svg.querySelectorAll('text')].find((t) => t.textContent === 'T');
+
+    expect(label?.getAttribute('fill')).toBe('#123456');
+  });
+
+  it('leaves an untagged node its default colour and draws no outline', () => {
+    const { svg } = buildExportSvg(makeNode('T'));
+
+    expect(svg.querySelector('rect[stroke]')).toBeNull();
+  });
+
   it('gives a custom feature a colour rather than dropping it', () => {
     const node = makeNode('T');
     node.features = ['uCase:nom'];
