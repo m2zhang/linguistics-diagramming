@@ -256,3 +256,12 @@
     transform: rotate(360deg);
   }
 }
+
+/* Explanatory note under an auth field — e.g. why onboarding asks a Google
+   signup for a password. */
+.auth-hint {
+  margin: 6px 0 0;
+  font-size: 0.78rem;
+  line-height: 1.45;
+  color: var(--text-dim);
+}

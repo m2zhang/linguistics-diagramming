@@ -6,6 +6,8 @@ import {
   logout as apiLogout,
   signup as apiSignup,
   updateProfile as apiUpdateProfile,
+  changePassword as apiChangePassword,
+  setInitialPassword as apiSetInitialPassword,
   type AuthUser,
   type Role,
 } from '../data/authClient';
@@ -29,7 +31,16 @@ interface AuthState {
     displayName: string;
   }) => Promise<{ needsEmailConfirmation: boolean }>;
   logout: () => Promise<void>;
-  updateProfile: (displayName: string) => Promise<void>;
+  updateProfile: (patch: {
+    displayName?: string;
+    institution?: string | null;
+    program?: string | null;
+    department?: string | null;
+  }) => Promise<void>;
+  /** Verifies the current password before changing it (see authClient). */
+  changePassword: (currentPassword: string, newPassword: string) => Promise<void>;
+  /** First password for an account created through Google. */
+  setInitialPassword: (password: string) => Promise<void>;
   finishOnboarding: (input: {
     role: Role;
     displayName: string;
@@ -72,8 +83,20 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     set({ user: null, status: 'unauthenticated' });
   },
 
-  updateProfile: async (displayName) => {
-    const user = await apiUpdateProfile({ displayName });
+  updateProfile: async (patch) => {
+    const user = await apiUpdateProfile(patch);
+    set({ user });
+  },
+
+  changePassword: async (currentPassword, newPassword) => {
+    const email = get().user?.email;
+    if (!email) throw new Error('not authenticated');
+    const user = await apiChangePassword({ email, currentPassword, newPassword });
+    set({ user });
+  },
+
+  setInitialPassword: async (password) => {
+    const user = await apiSetInitialPassword(password);
     set({ user });
   },
 

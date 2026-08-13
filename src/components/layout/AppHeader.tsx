@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { ChevronDown, LogOut, Moon, Sun, User } from 'lucide-react';
+import { ChevronDown, Keyboard, LogOut, Moon, Shield, Sun, User } from 'lucide-react';
 import { TreeLogo } from '../icons';
 import { ProfileAvatar } from '../ui/avatar';
 import { Button } from '../ui/button';
@@ -65,6 +65,16 @@ export function AppHeader({ children }: { children?: React.ReactNode }) {
             <DropdownMenuItem asChild>
               <Link to="/profile">
                 <User size={14} /> Profile
+              </Link>
+            </DropdownMenuItem>
+            <DropdownMenuItem asChild>
+              <Link to="/profile?tab=security">
+                <Shield size={14} /> Security
+              </Link>
+            </DropdownMenuItem>
+            <DropdownMenuItem asChild>
+              <Link to="/profile?tab=shortcuts">
+                <Keyboard size={14} /> Keyboard shortcuts
               </Link>
             </DropdownMenuItem>
             <DropdownMenuSeparator />

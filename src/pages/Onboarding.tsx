@@ -6,6 +6,8 @@ import type { Role } from '../data/authClient';
 import { AuthLayout } from '../components/layout/AuthLayout';
 import { TreeLogo } from '../components/icons';
 
+const MIN_PASSWORD = 8;
+
 /** Two-step wizard every new account passes through exactly once.
  *
  *  Role lives here rather than on the signup form because Google sign-up
@@ -15,6 +17,7 @@ import { TreeLogo } from '../components/icons';
 export function Onboarding() {
   const user = useAuthStore((s) => s.user);
   const finishOnboarding = useAuthStore((s) => s.finishOnboarding);
+  const setInitialPassword = useAuthStore((s) => s.setInitialPassword);
   const navigate = useNavigate();
 
   const [step, setStep] = useState<1 | 2>(1);
@@ -24,6 +27,12 @@ export function Onboarding() {
   const [institution, setInstitution] = useState('');
   const [program, setProgram] = useState('');
   const [department, setDepartment] = useState('');
+  const [password, setPassword] = useState('');
+
+  /* Only a Google signup reaches here without one: the email form sets its own
+     password and calls finishOnboarding directly. Collecting it now is what
+     makes "disconnect Google" safe later — see the Security tab. */
+  const needsPassword = user?.hasPassword === false;
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
@@ -38,6 +47,17 @@ export function Onboarding() {
     setError(null);
     setSubmitting(true);
     try {
+      if (needsPassword) {
+        if (password.length < MIN_PASSWORD) {
+          setError(`Use a password of at least ${MIN_PASSWORD} characters.`);
+          setSubmitting(false);
+          return;
+        }
+        // Before finishOnboarding, so a failure here does not leave the
+        // account marked onboarded but still password-less.
+        await setInitialPassword(password);
+      }
+
       await finishOnboarding({
         role,
         displayName: displayName.trim(),
@@ -139,10 +159,29 @@ export function Onboarding() {
               </div>
             )}
 
+            {needsPassword && (
+              <div className="auth-field">
+                <label htmlFor="onboard-password">Create a password</label>
+                <input
+                  id="onboard-password"
+                  type="password"
+                  autoComplete="new-password"
+                  required
+                  minLength={MIN_PASSWORD}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                />
+                <p className="auth-hint">
+                  You signed up with Google. A password lets you sign in without it, and is
+                  required before you can disconnect Google later.
+                </p>
+              </div>
+            )}
+
             <button
               type="submit"
               className="btn primary auth-submit"
-              disabled={submitting || !displayName.trim()}
+              disabled={submitting || !displayName.trim() || (needsPassword && !password)}
             >
               {submitting ? 'Setting up…' : 'Finish setup'}
             </button>

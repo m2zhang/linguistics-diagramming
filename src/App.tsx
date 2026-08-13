@@ -14,15 +14,16 @@ import { SaveToLectureBanner } from './components/lecture/SaveToLectureBanner';
 import { CreateAssignmentBanner } from './components/assignment/CreateAssignmentBanner';
 import { AssignmentWorkBanner } from './components/assignment/AssignmentWorkBanner';
 import { GradingPanel } from './components/assignment/GradingPanel';
-import { useLibraryShortcuts } from './hooks/useLibraryShortcuts';
 import { usePersistence } from './hooks/usePersistence';
 import { useUiStore } from './store/uiStore';
 
 export default function App() {
   // usePersistence replaced useCloudSync in the Supabase move — same job
   // (restore the session tree, save it back), so only one of them runs.
+  // F1-F9 used to be bound here by useLibraryShortcuts; TreeCanvas now owns
+  // every canvas key so they cannot fire twice and so the locked/presenting
+  // rules apply to them too.
   usePersistence();
-  useLibraryShortcuts();
 
   const appMode = useUiStore((s) => s.appMode);
   

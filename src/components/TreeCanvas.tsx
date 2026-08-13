@@ -8,13 +8,18 @@ import {
   nodeBox,
   PositionedNode,
 } from '../model/layout';
-import { useTreeStore } from '../store/treeStore';
+import { findNode, useTreeStore } from '../store/treeStore';
+import { INSTRUCTOR_TOOLS, resolveShortcut, type CanvasTool } from '../model/shortcuts';
+import { allNodeIds, neighborId } from '../model/navigate';
+import { PRESETS } from './NodeLibrary';
+import { TEMPLATES, templateToTree } from '../model/templates';
 import { useUiStore } from '../store/uiStore';
 import { drawingToTree, pointToSegment } from '../model/drawingToTree';
 import { sketchToTree } from '../vision/sketchToTree';
 import {
   Annotations,
   Box,
+  cloneWithNewIds,
   collectAnnotationSteps,
   Connector,
   effectiveStyle,
@@ -50,7 +55,7 @@ interface ViewState {
   ty: number;
 }
 
-type Tool = 'select' | 'draw' | 'highlight'| 'text' | 'erase' | 'box' | 'arrow';
+type Tool = CanvasTool;
 
 function HighlighterIcon() {
   return (
@@ -165,6 +170,7 @@ export function TreeCanvas() {
   const deleteMultiple = useTreeStore((s) => s.deleteMultiple);
   const replaceTree = useTreeStore((s) => s.replaceTree);
   const attachPreset = useTreeStore((s) => s.attachPreset);
+  const addChild = useTreeStore((s) => s.addChild);
   const addStroke = useTreeStore((s) => s.addStroke);
   const moveStroke = useTreeStore((s) => s.moveStroke);
   const addNote = useTreeStore((s) => s.addNote);
@@ -200,7 +206,7 @@ export function TreeCanvas() {
   // (e.g. an instructor previewing as student), fall back to 'select' so
   // the canvas never ends up in a tool that no longer has a button for it.
   useEffect(() => {
-    if (appMode === 'student' && (tool === 'draw' || tool === 'box' || tool === 'arrow')) {
+    if (appMode === 'student' && INSTRUCTOR_TOOLS.has(tool)) {
       setTool('select');
     }
   }, [appMode, tool]);
@@ -715,53 +721,170 @@ export function TreeCanvas() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedIds, getElementCenter, addConnector, strokeColor, select, presenting]);
 
-  // ----- Keyboard: Delete selected, Ctrl+Z / Ctrl+Y undo/redo -----
+  // ----- Keyboard control -----
+  // Which action a key means lives in model/shortcuts (pure, unit-tested);
+  // this effect only performs it. Anything resolveShortcut() does not claim
+  // falls through untouched, so browser shortcuts keep working.
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      const tag = (e.target as HTMLElement)?.tagName;
-      const typing = tag === 'INPUT' || tag === 'TEXTAREA';
-      if ((e.ctrlKey || e.metaKey) && !typing) {
-        const key = e.key.toLowerCase();
-        if (key === 'z') {
-          e.preventDefault();
-          if (e.shiftKey) redo();
-          else undo();
+      const target = e.target as HTMLElement | null;
+      const tag = target?.tagName;
+      const typing =
+        tag === 'INPUT' ||
+        tag === 'TEXTAREA' ||
+        tag === 'SELECT' ||
+        !!target?.isContentEditable ||
+        !!editing ||
+        !!editingNote;
+
+      const action = resolveShortcut(e, {
+        typing,
+        selectionCount: selectedIds.length,
+        canUseInstructorTools: appMode === 'instructor',
+        locked,
+      });
+      if (!action) return;
+
+      switch (action.kind) {
+        case 'deselect':
+          select(null);
           return;
-        }
-        if (key === 'y') {
+
+        case 'undo':
+          e.preventDefault();
+          undo();
+          return;
+        case 'redo':
           e.preventDefault();
           redo();
           return;
-        }
-      }
-      if (e.key === 'Escape') {
-        select(null);
-      }
-      if (editing || editingNote || typing) return;
-      if (e.key.toLowerCase() === 'c' && selectedIds.length === 2) {
-        e.preventDefault();
-        connectSelected();
-        return;
-      }
-      if (e.key === 'Enter' && selectedId) {
-        const selectedNote = annotations.notes.find((n) => n.id === selectedId);
-        if (selectedNote) {
+
+        case 'selectTool':
           e.preventDefault();
-          setEditingNote({ id: selectedNote.id, x: selectedNote.x, y: selectedNote.y, value: selectedNote.text });
+          setTool(action.tool);
+          return;
+
+        case 'selectAll': {
+          e.preventDefault();
+          if (locked) return;
+          const ids = allNodeIds(tree);
+          if (ids.length === 0) return;
+          // select() replaces on the first id, then accumulates.
+          select(ids[0]);
+          for (const id of ids.slice(1)) select(id, true);
           return;
         }
-      }
-      if ((e.key === 'Delete' || e.key === 'Backspace') && selectedIds.length > 0) {
-        // Locked: annotations are still the presenter's to erase, nodes are not.
-        const targets = locked ? selectedIds.filter((id) => annotationIds.has(id)) : selectedIds;
-        if (targets.length === 0) return;
-        e.preventDefault();
-        deleteMultiple(targets);
+
+        case 'moveSelection': {
+          const next = neighborId(tree, selectedId, action.direction);
+          if (!next) return; // nowhere to go: leave the selection put
+          e.preventDefault();
+          select(next);
+          return;
+        }
+
+        case 'pan': {
+          e.preventDefault();
+          const STEP = 60;
+          const dx = action.direction === 'left' ? STEP : action.direction === 'right' ? -STEP : 0;
+          const dy = action.direction === 'up' ? STEP : action.direction === 'down' ? -STEP : 0;
+          setView((v) => ({ ...v, tx: v.tx + dx, ty: v.ty + dy }));
+          return;
+        }
+
+        case 'zoomIn':
+          e.preventDefault();
+          zoomBy(1.2);
+          return;
+        case 'zoomOut':
+          e.preventDefault();
+          zoomBy(1 / 1.2);
+          return;
+        case 'fitToView':
+          e.preventDefault();
+          fitToView();
+          return;
+
+        case 'renameSelection': {
+          e.preventDefault();
+          const note = annotations.notes.find((n) => n.id === selectedId);
+          if (note) {
+            setEditingNote({ id: note.id, x: note.x, y: note.y, value: note.text });
+            return;
+          }
+          const node = layout?.nodes.find((n) => n.id === selectedId);
+          if (node) setEditing({ id: node.id, value: node.label });
+          return;
+        }
+
+        case 'addChild':
+          if (!selectedId || !findNode(tree, selectedId)) return;
+          e.preventDefault();
+          addChild(selectedId);
+          return;
+
+        case 'connectSelection':
+          e.preventDefault();
+          connectSelected();
+          return;
+
+        case 'deleteSelection': {
+          // Locked: annotations are still the presenter's to erase, nodes are not.
+          const targets = locked ? selectedIds.filter((id) => annotationIds.has(id)) : selectedIds;
+          if (targets.length === 0) return;
+          e.preventDefault();
+          deleteMultiple(targets);
+          return;
+        }
+
+        case 'insertPreset': {
+          if (locked) return;
+          const preset = PRESETS[action.index];
+          if (!preset) return;
+          e.preventDefault();
+          const built = preset.build();
+          if (selectedId && findNode(tree, selectedId)) attachPreset(selectedId, built);
+          else if (tree) attachPreset(tree.id, built);
+          else replaceTree(cloneWithNewIds(built));
+          toast(`Added ${preset.name}`, 'success');
+          return;
+        }
+
+        case 'loadTemplate': {
+          if (locked) return;
+          const template = TEMPLATES[action.index];
+          if (!template) return;
+          e.preventDefault();
+          replaceTree(templateToTree(template));
+          toast(`Loaded "${template.name}"`, 'success');
+          return;
+        }
       }
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [editing, editingNote, selectedId, selectedIds, deleteMultiple, undo, redo, annotations, removeAnnotation, select, connectSelected, locked, annotationIds]);
+  }, [
+    editing,
+    editingNote,
+    selectedId,
+    selectedIds,
+    tree,
+    layout,
+    appMode,
+    locked,
+    annotations,
+    annotationIds,
+    select,
+    undo,
+    redo,
+    deleteMultiple,
+    connectSelected,
+    addChild,
+    attachPreset,
+    replaceTree,
+    fitToView,
+    toast,
+  ]);
 
   const beginEdit = (n: PositionedNode) => {
     setEditing({ id: n.id, value: n.label });
@@ -848,16 +971,22 @@ export function TreeCanvas() {
     arrow: 'crosshair',
   };
 
-  const toolButton = (t: Tool, icon: JSX.Element, title: string) => (
+  /** Renders nothing for a tool this user does not have — the same
+   *  INSTRUCTOR_TOOLS set the keyboard resolver gates on, so a hidden button
+   *  and an inert shortcut can never disagree. */
+  const toolButton = (t: Tool, icon: JSX.Element, title: string) => {
+    if (INSTRUCTOR_TOOLS.has(t) && appMode !== 'instructor') return null;
+    return (
     <button
       className={`btn icon ghost${tool === t ? ' active' : ''}${t === 'erase' ? ' eraser-btn' : ''}`}
       title={title}
       aria-pressed={tool === t}
       onClick={() => setTool(t)}
     >
-      {icon}
-    </button>
-  );
+        {icon}
+      </button>
+    );
+  };
 
   return (
     <div
@@ -1441,13 +1570,13 @@ export function TreeCanvas() {
 
       {/* Tool palette: top-left of the canvas */}
       <div className="canvas-toolbar tools">
-        {toolButton('select', <CursorIcon />, 'Select / pan (drag canvas, double-click to rename)')}
-        {appMode === 'instructor' && toolButton('draw', <PenIcon />, 'Draw freehand')}
-        {toolButton('highlight', <HighlighterIcon />, 'Highlight')}
-        {toolButton('text', <TextIcon />, 'Add text note (click on canvas)')}
-        {appMode === 'instructor' && toolButton('arrow', <ArrowIcon />, 'Draw connector arrow between elements')}
-        {appMode === 'instructor' && toolButton('box', <BoxIcon />, 'Draw box around elements')}
-        {toolButton('erase', <EraserIcon />, 'Eraser (click a drawing, note, box, or arrow)')}
+        {toolButton('select', <CursorIcon />, 'Select / pan (V) — drag canvas, double-click to rename')}
+        {toolButton('draw', <PenIcon />, 'Draw freehand (P)')}
+        {toolButton('highlight', <HighlighterIcon />, 'Highlight (H)')}
+        {toolButton('text', <TextIcon />, 'Add text note (T) — click on canvas')}
+        {toolButton('arrow', <ArrowIcon />, 'Draw connector arrow between elements (A)')}
+        {toolButton('box', <BoxIcon />, 'Draw box around elements (B)')}
+        {toolButton('erase', <EraserIcon />, 'Eraser (E) — click a drawing, note, box, or arrow')}
 
         {(tool === 'draw' || tool === 'highlight' || tool === 'text' || tool === 'box' || tool === 'arrow') && (
           <>
