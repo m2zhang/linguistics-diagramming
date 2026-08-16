@@ -54,7 +54,7 @@ export function SaveToLectureBanner() {
   };
 
   return (
-    <div className="absolute left-1/2 top-3 z-10 flex -translate-x-1/2 items-center gap-3 rounded-[var(--radius)] border border-accent bg-bg-panel px-3 py-2 shadow-[var(--shadow)]">
+    <div className="absolute top-3.5 right-4 z-10 flex items-center gap-3 rounded-[var(--radius)] border border-accent/30 bg-bg-panel px-3.5 py-1.5 shadow-[var(--shadow)]">
       <span className="text-xs font-semibold text-text-dim">
         Building lesson tree <span className="text-text">"{pending.title}"</span>
       </span>

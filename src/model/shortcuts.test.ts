@@ -88,6 +88,7 @@ describe('resolveShortcut', () => {
     expect(press('=')).toEqual({ kind: 'zoomIn' });
     expect(press('-')).toEqual({ kind: 'zoomOut' });
     expect(press('0')).toEqual({ kind: 'fitToView' });
+    expect(press('?')).toEqual({ kind: 'openShortcuts' });
   });
 
   it('guards actions that need a particular selection', () => {
@@ -135,7 +136,7 @@ describe('resolveShortcut', () => {
 describe('the shortcut reference', () => {
   /** The reference exists to be trusted, so every key it prints must resolve. */
   it('lists nothing the resolver ignores', () => {
-    const printed = SHORTCUT_GROUPS.flatMap((g) => g.entries);
+    const printed = SHORTCUT_GROUPS.filter((g) => g.title !== 'Presentation').flatMap((g) => g.entries);
     expect(printed.length).toBeGreaterThan(0);
 
     // Keycaps are display text; map them back to the KeyboardEvent.key values.
@@ -143,6 +144,7 @@ describe('the shortcut reference', () => {
       Enter: { key: 'Enter' },
       Delete: { key: 'Delete' },
       Esc: { key: 'Escape' },
+      '?': { key: '?' },
       '↑': { key: 'ArrowUp' },
       '↓': { key: 'ArrowDown' },
       '←': { key: 'ArrowLeft' },

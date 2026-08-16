@@ -102,6 +102,15 @@ export function PresentationBar() {
           e.preventDefault();
           revealAll();
           break;
+        case 'f':
+        case 'F':
+          e.preventDefault();
+          toggleFullscreen();
+          break;
+        case '?':
+          e.preventDefault();
+          useUiStore.getState().toggleShortcuts();
+          break;
         case 'Escape':
           // Browsers swallow Escape to leave fullscreen; leave the mode on the
           // next press rather than doing both at once.
@@ -111,7 +120,7 @@ export function PresentationBar() {
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [stepForward, stepBack, revealAll, collapseToRoot, stopPresenting]);
+  }, [stepForward, stepBack, revealAll, collapseToRoot, stopPresenting, toggleFullscreen]);
 
   const unit = revealMode === 'steps' ? 'Step' : 'Level';
 

@@ -746,6 +746,11 @@ export function TreeCanvas() {
       if (!action) return;
 
       switch (action.kind) {
+        case 'openShortcuts':
+          e.preventDefault();
+          useUiStore.getState().toggleShortcuts();
+          return;
+
         case 'deselect':
           select(null);
           return;

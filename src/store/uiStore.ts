@@ -30,10 +30,13 @@ interface UiState {
    *  a custom feature already on a node keeps its colour forever, because
    *  featureColor() derives it from the label rather than reading it back. */
   customFeatures: string[];
+  shortcutsOpen: boolean;
   toggleTheme: () => void;
   toggleSidebar: () => void;
   toggleRightpane: () => void;
   setAppMode: (mode: AppMode) => void;
+  setShortcutsOpen: (open: boolean) => void;
+  toggleShortcuts: () => void;
   addCustomFeature: (label: string) => void;
   removeCustomFeature: (label: string) => void;
 
@@ -124,6 +127,7 @@ export const useUiStore = create<UiState>((set) => ({
   rightpaneOpen: true,
   appMode: 'student',
   customFeatures: [],
+  shortcutsOpen: false,
 
   presenting: false,
   locked: false,
@@ -143,6 +147,8 @@ export const useUiStore = create<UiState>((set) => ({
   toggleSidebar: () => set((s) => ({ sidebarOpen: !s.sidebarOpen })),
   toggleRightpane: () => set((s) => ({ rightpaneOpen: !s.rightpaneOpen })),
   setAppMode: (appMode) => set({ appMode }),
+  setShortcutsOpen: (shortcutsOpen) => set({ shortcutsOpen }),
+  toggleShortcuts: () => set((s) => ({ shortcutsOpen: !s.shortcutsOpen })),
   toggleLocked: () => set((s) => ({ locked: !s.locked })),
 
   startPresenting: () =>

@@ -3,6 +3,8 @@ import { useTreeStore } from '../store/treeStore';
 import { useUiStore } from '../store/uiStore';
 import { useAuthStore } from '../store/authStore';
 import { BackButton } from './ui/back-button';
+import { UserMenu } from './layout/UserMenu';
+import { ShortcutsDialog } from './ShortcutsDialog';
 import { PENDING_ASSIGNMENT_KEY, type PendingAssignment } from './assignment/AssignmentEditor';
 import {
   DownloadIcon,
@@ -48,7 +50,6 @@ export function Toolbar() {
   const startPresenting = useUiStore((s) => s.startPresenting);
   const toast = useUiStore((s) => s.toast);
   const user = useAuthStore((s) => s.user);
-  const logout = useAuthStore((s) => s.logout);
   const [params] = useSearchParams();
 
   // The editor is entered from several different places (a lecture's tree,
@@ -213,15 +214,12 @@ export function Toolbar() {
         {theme === 'dark' ? <SunIcon /> : <MoonIcon />}
       </button>
 
+      <ShortcutsDialog />
+
       {user && (
         <>
           <span className="toolbar-divider" />
-          <span className="hint" title={user.email} style={{ marginRight: 4 }}>
-            {user.displayName} · {appMode}
-          </span>
-          <button className="btn ghost" onClick={() => logout()}>
-            Sign out
-          </button>
+          <UserMenu />
         </>
       )}
     </header>

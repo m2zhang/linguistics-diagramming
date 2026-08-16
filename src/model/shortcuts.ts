@@ -64,7 +64,8 @@ export type ShortcutAction =
   | { kind: 'zoomOut' }
   | { kind: 'fitToView' }
   | { kind: 'insertPreset'; index: number }
-  | { kind: 'loadTemplate'; index: number };
+  | { kind: 'loadTemplate'; index: number }
+  | { kind: 'openShortcuts' };
 
 export interface ShortcutEvent {
   key: string;
@@ -149,6 +150,8 @@ export function resolveShortcut(
   if (lower === 'c') {
     return ctx.selectionCount === 2 && !ctx.locked ? { kind: 'connectSelection' } : null;
   }
+
+  if (key === '?' || (mod && key === '/')) return { kind: 'openShortcuts' };
 
   const tool = TOOL_KEYS[lower];
   if (tool) {
@@ -252,6 +255,17 @@ export const SHORTCUT_GROUPS: ShortcutGroup[] = [
       { keys: ['F7'], label: 'Load Transitive VP' },
       { keys: ['F8'], label: 'Load Prepositional Phrase' },
       { keys: ['F9'], label: 'Load Embedded Clause' },
+    ],
+  },
+  {
+    title: 'Presentation',
+    entries: [
+      { keys: ['→', 'Space'], label: 'Next step / reveal level' },
+      { keys: ['←'], label: 'Previous step / level' },
+      { keys: ['Home'], label: 'Reset to root / start' },
+      { keys: ['End'], label: 'Reveal all steps' },
+      { keys: ['F'], label: 'Toggle fullscreen' },
+      { keys: ['Esc'], label: 'Exit presentation' },
     ],
   },
 ];

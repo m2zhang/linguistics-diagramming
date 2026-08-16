@@ -56,9 +56,9 @@ export function AssignmentWorkBanner() {
 
   return (
     <>
-      <div className="absolute bottom-6 left-1/2 z-10 flex -translate-x-1/2 items-center gap-4 rounded-full border border-accent/20 bg-bg-elevated/90 px-5 py-3 shadow-xl backdrop-blur-md">
-        <span className="flex items-center gap-1.5 text-sm font-semibold text-text-dim">
-          {status === 'saving' && <Loader2 size={12} className="animate-spin" />}
+      <div className="absolute top-3.5 right-4 z-10 flex items-center gap-3 rounded-[var(--radius)] border border-accent/30 bg-bg-panel px-3.5 py-1.5 shadow-[var(--shadow)]">
+        <span className="flex items-center gap-1.5 text-xs font-medium text-text-dim">
+          {status === 'saving' && <Loader2 size={12} className="animate-spin text-accent" />}
           {status === 'saved' && <Check size={12} className="text-success" />}
           {STATUS_LABEL[status]}
         </span>
