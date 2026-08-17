@@ -33,7 +33,9 @@ document.documentElement.setAttribute('data-theme', 'light');
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <BrowserRouter>
+    {/* basename keeps every route inside the deploy subpath. BASE_URL is '/'
+        in development, so this is a no-op locally. */}
+    <BrowserRouter basename={import.meta.env.BASE_URL}>
       <Routes>
         <Route path="/login" element={<LoginScreen />} />
         <Route path="/signup" element={<SignupScreen />} />

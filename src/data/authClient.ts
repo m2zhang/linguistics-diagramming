@@ -1,3 +1,4 @@
+import { appUrl } from '../lib/appUrl';
 import { supabase } from '../lib/supabase';
 
 export type Role = 'student' | 'instructor';
@@ -81,7 +82,7 @@ export async function login(input: { email: string; password: string }) {
 export async function signInWithGoogle() {
   const { error } = await supabase.auth.signInWithOAuth({
     provider: 'google',
-    options: { redirectTo: `${window.location.origin}/dashboard` },
+    options: { redirectTo: appUrl('/dashboard') },
   });
   if (error) throw new Error(error.message);
 }
@@ -173,7 +174,7 @@ export async function updateProfile(input: {
  *  with a session already established, so no token is handled by us. */
 export async function requestPasswordReset(email: string) {
   const { error } = await supabase.auth.resetPasswordForEmail(email, {
-    redirectTo: `${window.location.origin}/reset-password`,
+    redirectTo: appUrl('/reset-password'),
   });
   if (error) throw new Error(error.message);
 }
@@ -213,7 +214,7 @@ export async function listLinkedIdentities(): Promise<LinkedIdentity[]> {
 export async function connectGoogle() {
   const { error } = await supabase.auth.linkIdentity({
     provider: 'google',
-    options: { redirectTo: `${window.location.origin}/profile` },
+    options: { redirectTo: appUrl('/profile') },
   });
   if (error) throw new Error(describeProviderError(error.message));
 }

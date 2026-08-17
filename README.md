@@ -88,6 +88,39 @@ npm test           # Runs Vitest unit tests for parser, serializer, and layout
 
 ---
 
+## Deploying to a subpath (UTSC server)
+
+The app is a static bundle, but it uses client-side routing, so it needs two
+things the domain root would give it for free: an explicit base path, and a
+server rewrite.
+
+Build with `VITE_BASE_PATH` set to the path the app is served from, including
+both slashes:
+
+```bash
+VITE_BASE_PATH=/~you/syntaxtree/ npm run build
+```
+
+That single variable drives the asset base, the React Router `basename`, and the
+Supabase redirect URLs together, so they cannot drift apart. Then upload the
+contents of `dist/` — including the `.htaccess` it ships, which is what stops a
+hard refresh on `/courses/<id>/lectures` from 404ing before React loads.
+
+Finally, in the Supabase dashboard under **Authentication → URL Configuration**,
+add the deployed URL to **Redirect URLs**:
+
+```
+https://<host>.utsc.utoronto.ca/~you/syntaxtree/*
+```
+
+Without that entry Google sign-in and password reset are rejected by Supabase
+even though the app itself is configured correctly.
+
+> Serving from the domain root instead? Omit `VITE_BASE_PATH` entirely; it
+> defaults to `/` and everything above still applies except the base path.
+
+---
+
 ## Project Structure
 
 ```
