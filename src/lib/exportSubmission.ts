@@ -22,9 +22,32 @@ export async function exportTreeAs(
   filenameBase: string,
 ): Promise<void> {
   if (!content.tree) return;
-  useTreeStore.getState().setAnnotations(content.annotations ?? EMPTY_ANNOTATIONS);
 
-  const name = safeFilenamePart(filenameBase);
+  const prev = useTreeStore.getState();
+  const prevAnnotations = prev.annotations;
+  const prevCurrentStep = prev.currentStep;
+  const prevStepLabels = prev.stepLabels;
+
+  try {
+    useTreeStore.getState().setAnnotations(content.annotations ?? EMPTY_ANNOTATIONS);
+    useTreeStore.getState().loadStepMeta(content.currentStep, content.stepLabels);
+
+    const name = safeFilenamePart(filenameBase);
+    if (format === 'png') {
+      const { exportPng } = await import('../export/exportImage');
+      await exportPng(content.tree, 2, `${name}.png`);
+    } else if (format === 'pdf') {
+      const { exportPdf } = await import('../export/exportPdf');
+      await exportPdf(content.tree, `${name}.pdf`);
+    } else {
+      const { exportSvgFile } = await import('../export/exportImage');
+      exportSvgFile(content.tree, `${name}.svg`);
+    }
+  } finally {
+    useTreeStore.getState().setAnnotations(prevAnnotations);
+    useTreeStore.getState().loadStepMeta(prevCurrentStep, prevStepLabels);
+  }
+}
   if (format === 'png') {
     const { exportPng } = await import('../export/exportImage');
     await exportPng(content.tree, 2, `${name}.png`);
