@@ -69,10 +69,16 @@ function toTree(row: TreeRow): LectureTree {
 /** Positions were assigned by a SQL subquery in the old Express handler;
  *  with no server there any more, compute the next one client-side. */
 async function nextPosition(table: 'lectures' | 'lecture_trees', column: string, id: string): Promise<number> {
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from(table)
     .select('position')
     .eq(column, id)
+    .order('position', { ascending: false })
+    .limit(1);
+  if (error) throw new Error(error.message);
+  const top = (data as { position: number }[] | null)?.[0];
+  return top ? top.position + 1 : 0;
+}
     .order('position', { ascending: false })
     .limit(1);
   const top = (data as { position: number }[] | null)?.[0];
