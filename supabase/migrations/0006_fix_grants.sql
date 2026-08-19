@@ -48,7 +48,6 @@ grant all privileges on all routines  in schema public to service_role;
 -- can handle, instead of the same opaque 403 this migration exists to fix. No
 -- policy admits anon today, so the rows are filtered to nothing regardless.
 grant select  on all tables   in schema public to anon;
-grant execute on all routines in schema public to anon;
 
 -- Same grants for anything created later, so a new table is not born broken.
 alter default privileges in schema public
@@ -58,8 +57,7 @@ alter default privileges in schema public
 alter default privileges in schema public
   grant select on tables to anon;
 alter default privileges in schema public
-  grant execute on routines to authenticated, anon;
-alter default privileges in schema public
+  grant execute on routines to authenticated;
   grant all privileges on tables to service_role;
 alter default privileges in schema public
   grant all privileges on sequences to service_role;
