@@ -11,12 +11,11 @@ export function AuthGate({ children }: { children: ReactNode }) {
   const refresh = useAuthStore((s) => s.refresh);
   const location = useLocation();
 
-  useEffect(() => {
-    // Runs once per app load; LoginScreen/SignupScreen call refresh() themselves
-    // after a successful auth action, so this doesn't need to re-run on route change.
-    void refresh();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+useEffect(() => {
+  // Only do the initial session check once per app load (authStore starts at "loading").
+  if (status !== 'loading') return;
+  void refresh();
+}, [status, refresh]);
 
   if (status === 'loading') {
     return (
