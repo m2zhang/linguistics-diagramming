@@ -11,11 +11,11 @@ export function AuthGate({ children }: { children: ReactNode }) {
   const refresh = useAuthStore((s) => s.refresh);
   const location = useLocation();
 
-useEffect(() => {
-  // Only do the initial session check once per app load (authStore starts at "loading").
-  if (status !== 'loading') return;
-  void refresh();
-}, [status, refresh]);
+  useEffect(() => {
+    // Only do the initial session check once per app load (authStore starts at "loading").
+    if (status !== 'loading') return;
+    void refresh();
+  }, [status, refresh]);
 
   if (status === 'loading') {
     return (

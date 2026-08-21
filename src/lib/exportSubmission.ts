@@ -48,14 +48,3 @@ export async function exportTreeAs(
     useTreeStore.getState().loadStepMeta(prevCurrentStep, prevStepLabels);
   }
 }
-  if (format === 'png') {
-    const { exportPng } = await import('../export/exportImage');
-    await exportPng(content.tree, 2, `${name}.png`);
-  } else if (format === 'pdf') {
-    const { exportPdf } = await import('../export/exportPdf');
-    await exportPdf(content.tree, `${name}.pdf`);
-  } else {
-    const { exportSvgFile } = await import('../export/exportImage');
-    exportSvgFile(content.tree, `${name}.svg`);
-  }
-}

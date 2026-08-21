@@ -79,11 +79,6 @@ async function nextPosition(table: 'lectures' | 'lecture_trees', column: string,
   const top = (data as { position: number }[] | null)?.[0];
   return top ? top.position + 1 : 0;
 }
-    .order('position', { ascending: false })
-    .limit(1);
-  const top = (data as { position: number }[] | null)?.[0];
-  return top ? top.position + 1 : 0;
-}
 
 export async function listLectures(courseId: string): Promise<Lecture[]> {
   const { data, error } = await supabase
