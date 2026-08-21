@@ -1,6 +1,15 @@
-import { layoutTree } from '../model/layout';
-import { TreeNode } from '../model/types';
-import { useTreeStore } from '../store/treeStore';
+import {
+  edgeEndY,
+  edgeStartY,
+  FEATURE_FONT_SIZE,
+  featureLineY,
+  layoutTree,
+  nodeBox,
+  PositionedNode,
+} from '../model/layout';
+import { effectiveStyle, FONT_STACKS, TreeNode } from '../model/types';
+import { featureColor, nodeTagColor } from '../model/features';
+import { currentProjectState } from './projectState';
 
 export interface PreparedSvg {
   svg: SVGSVGElement;
@@ -28,12 +37,9 @@ export function buildExportSvg(tree: TreeNode, opts?: { background?: string | nu
   svg.setAttribute('height', String(layout.height));
   svg.setAttribute('viewBox', `0 0 ${layout.width} ${layout.height}`);
 
-  // Embed the complete project state as a metadata attribute
-  const stateJson = JSON.stringify({
-    tree,
-    annotations: useTreeStore.getState().annotations,
-    version: '1.0'
-  });
+  // Embed the complete project state as a metadata attribute. Step stamps ride
+  // on the nodes themselves, so a re-imported SVG still presents step by step.
+  const stateJson = JSON.stringify(currentProjectState(tree));
   svg.setAttribute('data-syntax-tree-state', stateJson);
 
   const colInternal = cssVar('--node-internal', '#2f3a7a');
@@ -48,35 +54,73 @@ export function buildExportSvg(tree: TreeNode, opts?: { background?: string | nu
     svg.appendChild(bg);
   }
 
+  const byId = new Map<string, PositionedNode>(layout.nodes.map((n) => [n.id, n]));
+
   for (const e of layout.edges) {
+    const parent = byId.get(e.parentId);
+    const child = byId.get(e.childId);
+    if (!parent || !child) continue;
     const line = document.createElementNS(NS, 'line');
     line.setAttribute('x1', String(e.from.x));
-    line.setAttribute('y1', String(e.from.y + 9));
+    line.setAttribute('y1', String(edgeStartY(parent)));
     line.setAttribute('x2', String(e.to.x));
-    line.setAttribute('y2', String(e.to.y - 13));
+    line.setAttribute('y2', String(edgeEndY(child)));
     line.setAttribute('stroke', colConnector);
-    line.setAttribute('stroke-width', '1.5');
+    line.setAttribute('stroke-width', String(effectiveStyle(child.style, child.isLeaf).branchWidth));
     svg.appendChild(line);
   }
 
   for (const n of layout.nodes) {
+    const s = effectiveStyle(n.style, n.isLeaf);
+    const tagColor = nodeTagColor(n.features);
+
+    // Mirrors the canvas: a tagged node is outlined in its first tag's colour.
+    // Drawn before the label so the text sits on top. nodeBox().h already spans
+    // the feature lines, and the 3px inset matches TreeCanvas.
+    if (tagColor) {
+      const box = nodeBox(n);
+      const outline = document.createElementNS(NS, 'rect');
+      outline.setAttribute('x', String(box.x - 3));
+      outline.setAttribute('y', String(box.y - 3));
+      outline.setAttribute('width', String(box.w + 6));
+      outline.setAttribute('height', String(box.h + 6));
+      outline.setAttribute('rx', '8');
+      outline.setAttribute('fill', 'none');
+      outline.setAttribute('stroke', tagColor);
+      outline.setAttribute('stroke-width', '1.5');
+      outline.setAttribute('opacity', '0.45');
+      svg.appendChild(outline);
+    }
+
     const text = document.createElementNS(NS, 'text');
     text.setAttribute('x', String(n.x));
     text.setAttribute('y', String(n.y));
     text.setAttribute('text-anchor', 'middle');
     text.setAttribute('dominant-baseline', 'central');
-    text.setAttribute('font-size', '16');
-    text.setAttribute('font-weight', '600');
-    if (n.isLeaf) {
-      text.setAttribute('fill', colLeaf);
-      text.setAttribute('font-style', 'italic');
-      text.setAttribute('font-family', 'Inter, sans-serif');
-    } else {
-      text.setAttribute('fill', colInternal);
-      text.setAttribute('font-family', 'Montserrat, Inter, sans-serif');
-    }
+    text.setAttribute('font-size', String(s.fontSize));
+    text.setAttribute('font-weight', String(s.fontWeight));
+    text.setAttribute('font-family', FONT_STACKS[s.font]);
+    if (s.italic) text.setAttribute('font-style', 'italic');
+    // Same precedence the canvas applies: an explicit inspector colour wins,
+    // then the tag colour, then the default internal/leaf hue.
+    text.setAttribute('fill', s.color ?? tagColor ?? (n.isLeaf ? colLeaf : colInternal));
     text.textContent = n.label;
     svg.appendChild(text);
+
+    (n.features ?? []).forEach((f, i) => {
+      const feat = document.createElementNS(NS, 'text');
+      feat.setAttribute('x', String(n.x));
+      feat.setAttribute('y', String(featureLineY(n, i)));
+      feat.setAttribute('text-anchor', 'middle');
+      feat.setAttribute('dominant-baseline', 'hanging');
+      feat.setAttribute('font-size', String(FEATURE_FONT_SIZE));
+      feat.setAttribute('font-family', FONT_STACKS.mono);
+      // Same resolver the canvas uses, so an exported tag is the colour the
+      // instructor saw. featureColor() always returns a hex.
+      feat.setAttribute('fill', featureColor(f));
+      feat.textContent = `[${f}]`;
+      svg.appendChild(feat);
+    });
   }
 
   return { svg, width: layout.width, height: layout.height };

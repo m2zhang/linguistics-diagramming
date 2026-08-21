@@ -1,0 +1,33 @@
+# SPA fallback for Apache (the UTSC web server).
+#
+# This app uses client-side routing, so paths like /courses/<id>/lectures exist
+# only in the browser. Without this rule the server looks for a matching file,
+# finds nothing, and returns 404 on every hard refresh and every shared deep
+# link — React never gets a chance to run.
+#
+# Deliberately no RewriteBase: the rewrite target resolves relative to the
+# directory holding this file, so the same rule works at the domain root and
+# under a user subpath without editing it per deployment.
+
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+
+  # Real files and directories (the hashed assets, favicon, uploads) win.
+  RewriteCond %{REQUEST_FILENAME} -f [OR]
+  RewriteCond %{REQUEST_FILENAME} -d
+  RewriteRule ^ - [L]
+
+  # Everything else is a client-side route: hand back the SPA entry point.
+  RewriteRule . index.html [L]
+</IfModule>
+
+# The build emits content-hashed filenames, so assets are safe to cache hard.
+# index.html must not be, or users keep booting a stale bundle after a deploy.
+<IfModule mod_headers.c>
+  <FilesMatch "\.(js|css|woff2?|png|jpe?g|svg)$">
+    Header set Cache-Control "public, max-age=31536000, immutable"
+  </FilesMatch>
+  <FilesMatch "index\.html$">
+    Header set Cache-Control "no-cache"
+  </FilesMatch>
+</IfModule>

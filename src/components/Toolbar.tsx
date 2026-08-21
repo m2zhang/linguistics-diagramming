@@ -1,12 +1,17 @@
-import { AccountMenu } from '../auth/AccountMenu';
-import { SaveStatus } from './SaveStatus';
-import { TreeTitle } from './TreeTitle';
+import { useSearchParams } from 'react-router-dom';
 import { useTreeStore } from '../store/treeStore';
 import { useUiStore } from '../store/uiStore';
+import { useAuthStore } from '../store/authStore';
+import { BackButton } from './ui/back-button';
+import { UserMenu } from './layout/UserMenu';
+import { ShortcutsDialog } from './ShortcutsDialog';
+import { PENDING_ASSIGNMENT_KEY, type PendingAssignment } from './assignment/AssignmentEditor';
 import {
   DownloadIcon,
   ImageIcon,
+  LockIcon,
   MoonIcon,
+  PresentIcon,
   SunIcon,
   TrashIcon,
   TreeLogo,
@@ -39,7 +44,47 @@ export function Toolbar() {
   const rightpaneOpen = useUiStore((s) => s.rightpaneOpen);
   const toggleSidebar = useUiStore((s) => s.toggleSidebar);
   const toggleRightpane = useUiStore((s) => s.toggleRightpane);
+  const appMode = useUiStore((s) => s.appMode);
+  const locked = useUiStore((s) => s.locked);
+  const toggleLocked = useUiStore((s) => s.toggleLocked);
+  const startPresenting = useUiStore((s) => s.startPresenting);
   const toast = useUiStore((s) => s.toast);
+  const user = useAuthStore((s) => s.user);
+  const [params] = useSearchParams();
+
+  // The editor is entered from several different places (a lecture's tree,
+  // an assignment's draft, grading a submission, authoring a brand-new
+  // template), each of which stashes where it came from in the URL (or, for
+  // the not-yet-created-assignment case, in sessionStorage — there's no
+  // assignment id yet to put in the URL). The back button should return
+  // there instead of always dumping the user at the dashboard.
+  const courseId = params.get('courseId');
+  const { backTo, backLabel } = (() => {
+    if (params.get('assignment') && courseId) {
+      return { backTo: `/courses/${courseId}/assignments/${params.get('assignment')}`, backLabel: 'Assignment' };
+    }
+    if (params.get('saveToLecture') && courseId) {
+      return { backTo: `/courses/${courseId}/lectures/${params.get('saveToLecture')}`, backLabel: 'Lecture' };
+    }
+    if (params.get('viewLecture') && courseId) {
+      return { backTo: `/courses/${courseId}/lectures/${params.get('viewLecture')}`, backLabel: 'Lecture' };
+    }
+    if (params.get('viewAssignment') && courseId) {
+      return { backTo: `/courses/${courseId}/assignments/${params.get('viewAssignment')}`, backLabel: 'Assignment' };
+    }
+    if (params.get('grade') && courseId && params.get('assignmentId')) {
+      return {
+        backTo: `/courses/${courseId}/assignments/${params.get('assignmentId')}/submissions`,
+        backLabel: 'Submissions',
+      };
+    }
+    if (params.get('newAssignmentDraft')) {
+      const raw = sessionStorage.getItem(PENDING_ASSIGNMENT_KEY);
+      const pending: PendingAssignment | null = raw ? JSON.parse(raw) : null;
+      if (pending) return { backTo: `/courses/${pending.courseId}/assignments`, backLabel: 'Assignments' };
+    }
+    return { backTo: '/dashboard', backLabel: 'Dashboard' };
+  })();
 
   const guard = () => {
     if (!tree) {
@@ -85,8 +130,7 @@ export function Toolbar() {
         SyntaxTree
         <span className="sub">Modern linguistics tree editor</span>
       </div>
-      <TreeTitle />
-      <SaveStatus />
+      {user && <BackButton to={backTo} label={backLabel} />}
       <div className="topbar-spacer" />
 
       <button className="btn" onClick={doPng}>
@@ -98,15 +142,47 @@ export function Toolbar() {
       <button className="btn" onClick={doSvg}>
         <DownloadIcon /> SVG
       </button>
+      {appMode === 'instructor' && (
+        <button
+          className="btn danger"
+          title="Clear map to start fresh"
+          onClick={() => {
+            clear();
+            toast('Canvas cleared');
+          }}
+        >
+          <TrashIcon /> Clear Map
+        </button>
+      )}
+
+      <span className="toolbar-divider" />
+
       <button
-        className="btn danger"
-        title="Clear map to start fresh"
+        className="btn"
+        title="Present: hide the panels and reveal the tree level by level"
         onClick={() => {
-          clear();
-          toast('Canvas cleared');
+          if (!tree) {
+            toast('Nothing to present yet', 'error');
+            return;
+          }
+          startPresenting();
+          toast('Presenting — ← / → to step, Esc to exit', 'info');
         }}
       >
-        <TrashIcon /> Clear Map
+        <PresentIcon /> Present
+      </button>
+
+      <button
+        className={`btn icon ghost${locked ? ' active' : ''}`}
+        title={
+          locked
+            ? 'Editing locked — annotations still allowed. Click to unlock.'
+            : 'Lock editing (annotations stay available)'
+        }
+        aria-pressed={locked}
+        onClick={toggleLocked}
+      >
+        <LockIcon open={!locked} />
       </button>
 
       <span className="toolbar-divider" />
@@ -138,8 +214,14 @@ export function Toolbar() {
         {theme === 'dark' ? <SunIcon /> : <MoonIcon />}
       </button>
 
-      <span className="toolbar-divider" />
-      <AccountMenu />
+      <ShortcutsDialog />
+
+      {user && (
+        <>
+          <span className="toolbar-divider" />
+          <UserMenu />
+        </>
+      )}
     </header>
   );
 }

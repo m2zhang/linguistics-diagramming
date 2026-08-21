@@ -1,0 +1,59 @@
+/* Tailwind v4, imported piecewise so preflight (the base reset) is skipped —
+   it would clobber the hand-rolled editor CSS (.btn, .canvas-toolbar, etc.)
+   that predates Tailwind in this app. New screens (courses/lectures/etc.)
+   use Tailwind utilities; the editor keeps using app.css/theme.css.
+
+   Explicit layer order, matching Tailwind's own internal convention (later
+   in this list = higher priority). This matters: in CSS Cascade Layers, an
+   *unlayered* rule always beats a layered one regardless of specificity, so
+   without declaring `base` here, a plain `button {...}` reset added below
+   would sit outside all layers and defeat every Tailwind utility (bg-accent,
+   text-white, ...) applied to a <button> — not because of specificity, but
+   because it wouldn't be in a layer at all. Declaring the order up front
+   keeps the reset properly low-priority relative to `utilities`. */
+@layer theme, base, utilities;
+
+@import "tailwindcss/theme.css" layer(theme);
+@import "tailwindcss/utilities.css" layer(utilities);
+
+/* Map the app's existing design tokens (src/styles/theme.css) into Tailwind's
+   theme namespace so new screens can use bg-bg-panel, text-text-dim, etc.
+   and automatically follow the existing light/dark toggle (the [data-theme]
+   attribute on <html>, since theme.css redefines these same --bg/--text/...
+   variables under :root[data-theme='dark']). */
+@theme {
+  --color-bg: var(--bg);
+  --color-bg-elevated: var(--bg-elevated);
+  --color-bg-panel: var(--bg-panel);
+  --color-bg-input: var(--bg-input);
+  --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
+  --color-text: var(--text);
+  --color-text-dim: var(--text-dim);
+  --color-text-faint: var(--text-faint);
+  --color-accent: var(--accent);
+  --color-accent-strong: var(--accent-strong);
+  --color-accent-soft: var(--accent-soft);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-danger: var(--danger);
+  --font-sans: var(--font-ui);
+}
+
+@layer base {
+  /* Preflight is skipped (see note above), so plain <button> elements on the
+     new Tailwind screens keep the browser's native default border/appearance
+     instead of the intended borderless look. This is a plain element
+     selector in the `base` layer — lower priority than any Tailwind utility
+     class (bg-accent, border, etc.) applied on top, and lower than the
+     editor's own class-based `.btn` rule in app.css (which isn't layered at
+     all, so it still wins outright). */
+  button {
+    appearance: none;
+    -webkit-appearance: none;
+    border: none;
+    background: none;
+    font: inherit;
+    color: inherit;
+  }
+}

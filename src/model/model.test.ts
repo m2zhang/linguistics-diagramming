@@ -3,7 +3,7 @@ import { parseBracket } from './bracketParser';
 import { serializeBracket } from './bracketSerializer';
 import { toForest, toQtree, formatLabel, toFullDocument } from './latex';
 import { layoutTree } from './layout';
-import { TreeNode } from './types';
+import { carryOverDecorations, cloneWithNewIds, effectiveStyle, TreeNode } from './types';
 
 const SAMPLE = '[S [NP [D the] [N cat]] [VP [V sat]]]';
 
@@ -113,6 +113,27 @@ describe('toFullDocument', () => {
 });
 
 describe('layoutTree', () => {
+  it('never reveals a node before its parent', () => {
+    // The VP is stamped later than the V beneath it: the V must wait for it,
+    // or a branch would hang in mid-air on stage.
+    const { nodes } = layoutTree({
+      id: 'r',
+      label: 'S',
+      children: [
+        {
+          id: 'vp',
+          label: 'VP',
+          step: 3,
+          children: [{ id: 'v', label: 'V', step: 1, children: [] }],
+        },
+      ],
+    });
+    const byLabel = (l: string) => nodes.find((n) => n.label === l)!;
+    expect(byLabel('S').step).toBe(0);
+    expect(byLabel('VP').step).toBe(3);
+    expect(byLabel('V').step).toBe(3);
+  });
+
   it('gives leaves strictly increasing, non-overlapping x', () => {
     const { tree } = parseBracket(SAMPLE);
     const { nodes } = layoutTree(tree!);
@@ -135,5 +156,103 @@ describe('layoutTree', () => {
     const { edges } = layoutTree(tree!);
     // S->NP, S->VP, NP->D, NP->N, D->the, N->cat, VP->V, V->sat = 8
     expect(edges).toHaveLength(8);
+  });
+
+  it('carries node style and features through to positioned nodes', () => {
+    const { tree } = parseBracket('[X [A a] [B b]]');
+    tree!.children[0].style = { fontSize: 30 };
+    tree!.children[0].features = ['+wh'];
+
+    const { nodes } = layoutTree(tree!);
+    const a = nodes.find((n) => n.label === 'A')!;
+    expect(a.style).toEqual({ fontSize: 30 });
+    expect(a.features).toEqual(['+wh']);
+  });
+
+  it('widens leaf spacing so an enlarged label cannot collide with its sibling', () => {
+    const { tree } = parseBracket('[X [A determiner] [B b]]');
+    const before = layoutTree(tree!);
+    const gapBefore =
+      before.nodes.find((n) => n.label === 'b')!.x -
+      before.nodes.find((n) => n.label === 'determiner')!.x;
+
+    // Blow up the first leaf; it must push its sibling further right.
+    tree!.children[0].children[0].style = { fontSize: 34 };
+    const after = layoutTree(tree!);
+    const gapAfter =
+      after.nodes.find((n) => n.label === 'b')!.x -
+      after.nodes.find((n) => n.label === 'determiner')!.x;
+
+    expect(gapAfter).toBeGreaterThan(gapBefore);
+  });
+
+  it('reserves vertical room for feature lines', () => {
+    const { tree } = parseBracket('[X [A a] [B b]]');
+    const before = layoutTree(tree!).height;
+    tree!.children[0].children[0].features = ['+wh', 'uCase:nom'];
+    expect(layoutTree(tree!).height).toBeGreaterThan(before);
+  });
+});
+
+describe('node decorations', () => {
+  it('renders features into the LaTeX label, brace-wrapped', () => {
+    const { tree } = parseBracket('[S [NP a] [VP b]]');
+    tree!.children[0].features = ['+wh', 'uCase:nom'];
+
+    expect(toForest(tree!)).toContain('[{NP [+wh, uCase:nom]}');
+    expect(toQtree(tree!)).toContain('[.{NP [+wh, uCase:nom]}');
+  });
+
+  it('leaves featureless nodes untouched in LaTeX', () => {
+    const { tree } = parseBracket('[S [NP a] [VP b]]');
+    expect(toForest(tree!)).toContain('[NP');
+  });
+
+  it('cloneWithNewIds deep-copies style and features', () => {
+    const { tree } = parseBracket('[S [NP a]]');
+    tree!.children[0].style = { fontSize: 22 };
+    tree!.children[0].features = ['+wh'];
+
+    const copy = cloneWithNewIds(tree!);
+    expect(copy.children[0].id).not.toBe(tree!.children[0].id);
+    expect(copy.children[0].style).toEqual({ fontSize: 22 });
+    copy.children[0].features!.push('mutated');
+    expect(tree!.children[0].features).toEqual(['+wh']);
+  });
+
+  it('carryOverDecorations matches by position, not by id', () => {
+    const { tree: old } = parseBracket('[S [NP a] [VP b]]');
+    old!.children[1].style = { color: '#dc2626' };
+    old!.children[1].features = ['+past'];
+
+    const { tree: fresh } = parseBracket('[S [NP a] [VP sat]]');
+    const merged = carryOverDecorations(old!, fresh!);
+
+    expect(merged.children[1].style).toEqual({ color: '#dc2626' });
+    expect(merged.children[1].features).toEqual(['+past']);
+    expect(merged.children[1].children[0].label).toBe('sat');
+    // Ids come from the fresh parse — only decorations are carried over.
+    expect(merged.children[1].id).toBe(fresh!.children[1].id);
+    expect(merged.children[0].style).toBeUndefined();
+  });
+
+  it('carryOverDecorations tolerates a newly added subtree', () => {
+    const { tree: old } = parseBracket('[S [NP a]]');
+    old!.children[0].features = ['+wh'];
+    const { tree: fresh } = parseBracket('[S [NP a] [VP b]]');
+
+    const merged = carryOverDecorations(old!, fresh!);
+    expect(merged.children[0].features).toEqual(['+wh']);
+    expect(merged.children[1].features).toBeUndefined();
+  });
+
+  it('effectiveStyle falls back to leaf vs internal defaults', () => {
+    expect(effectiveStyle(undefined, false)).toMatchObject({ font: 'display', italic: false });
+    expect(effectiveStyle(undefined, true)).toMatchObject({ font: 'sans', italic: true });
+    expect(effectiveStyle({ italic: false, fontSize: 20 }, true)).toMatchObject({
+      font: 'sans',
+      italic: false,
+      fontSize: 20,
+    });
   });
 });

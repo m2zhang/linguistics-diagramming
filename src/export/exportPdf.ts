@@ -8,7 +8,7 @@ import { appendPdfMarker, currentProjectState, encodeState } from './projectStat
  * Export the tree as a vector PDF using jsPDF + svg2pdf.js. The page is sized to
  * the drawing (in points) with a small margin so the tree always fits.
  */
-export async function exportPdf(tree: TreeNode): Promise<void> {
+export async function exportPdf(tree: TreeNode, filename = 'syntax-tree.pdf'): Promise<void> {
   const { svg, width, height } = buildExportSvg(tree);
   const margin = 24;
   const pageW = width + margin * 2;
@@ -36,7 +36,7 @@ export async function exportPdf(tree: TreeNode): Promise<void> {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = 'syntax-tree.pdf';
+    a.download = filename;
     document.body.appendChild(a);
     a.click();
     a.remove();

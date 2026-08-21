@@ -143,6 +143,21 @@ export const TextIcon = (p: SVGProps<SVGSVGElement>) => (
   </svg>
 );
 
+export const PresentIcon = (p: SVGProps<SVGSVGElement>) => (
+  <svg {...base(p)}>
+    <rect x="3" y="4" width="18" height="12" rx="2" />
+    <path d="M12 16v4M9 21h6" />
+    <path d="m10.5 8.5 4 1.5-4 1.5Z" fill="currentColor" />
+  </svg>
+);
+
+export const LockIcon = ({ open = false, ...p }: SVGProps<SVGSVGElement> & { open?: boolean }) => (
+  <svg {...base(p)}>
+    <rect x="4" y="10" width="16" height="11" rx="2" />
+    {open ? <path d="M8 10V7a4 4 0 0 1 7.5-2" /> : <path d="M8 10V7a4 4 0 0 1 8 0v3" />}
+  </svg>
+);
+
 export const EraserIcon = (p: SVGProps<SVGSVGElement>) => (
   <svg {...base(p)}>
     <path d="m7 21 -4-4a2 2 0 0 1 0-2.8l9.2-9.2a2 2 0 0 1 2.8 0l5 5a2 2 0 0 1 0 2.8L13.5 19.3" />

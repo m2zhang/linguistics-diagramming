@@ -1,21 +1,45 @@
-import { ReactNode } from 'react';
-import { useUser } from './useUser';
-import { LoginScreen } from './LoginScreen';
+import { ReactNode, useEffect } from 'react';
+import { Navigate, useLocation } from 'react-router-dom';
+import { useAuthStore } from '../store/authStore';
+import { AuthLayout } from '../components/layout/AuthLayout';
 
-/** Renders `children` only when a user is signed in; otherwise the login screen.
- *  Shows a brief loading state while the initial session check resolves. */
+/** Wraps any route tree that requires a signed-in user. Redirects to /login
+ *  (preserving the attempted location) when the session check fails. */
 export function AuthGate({ children }: { children: ReactNode }) {
-  const { user, loading } = useUser();
+  const status = useAuthStore((s) => s.status);
+  const user = useAuthStore((s) => s.user);
+  const refresh = useAuthStore((s) => s.refresh);
+  const location = useLocation();
 
-  if (loading) {
+  useEffect(() => {
+    // Only do the initial session check once per app load (authStore starts at "loading").
+    if (status !== 'loading') return;
+    void refresh();
+  }, [status, refresh]);
+
+  if (status === 'loading') {
     return (
-      <div className="auth-screen">
-        <div className="auth-spinner" aria-label="Loading" />
-      </div>
+      <AuthLayout>
+        <div className="flex flex-col items-center justify-center space-y-6 py-12">
+          <div className="h-10 w-10 animate-spin rounded-full border-4 border-border border-t-accent" />
+          <p className="font-[family-name:var(--font-display)] text-sm font-semibold tracking-wide text-text-dim animate-pulse">
+            Loading session...
+          </p>
+        </div>
+      </AuthLayout>
     );
   }
 
-  if (!user) return <LoginScreen />;
+  if (status === 'unauthenticated') {
+    return <Navigate to="/login" replace state={{ from: location }} />;
+  }
+
+  // A signed-in account with no role chosen yet can't render a dashboard —
+  // finish onboarding first. The /onboarding route itself is exempt, or this
+  // would redirect to itself forever.
+  if (user && !user.onboarded && location.pathname !== '/onboarding') {
+    return <Navigate to="/onboarding" replace />;
+  }
 
   return <>{children}</>;
 }

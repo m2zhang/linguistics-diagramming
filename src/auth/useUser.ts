@@ -1,34 +1,8 @@
-import { useEffect, useState } from 'react';
-import type { User } from '@supabase/supabase-js';
-import { supabase } from '../lib/supabase';
+import { useAuthStore } from '../store/authStore';
 
-interface AuthState {
-  user: User | null;
-  /** True until the initial session check resolves, so the app can show a spinner
-   *  instead of flashing the login screen for already-signed-in users. */
-  loading: boolean;
-}
-
-/** Subscribe to the current Supabase auth session. */
-export function useUser(): AuthState {
-  const [state, setState] = useState<AuthState>({ user: null, loading: true });
-
-  useEffect(() => {
-    let active = true;
-
-    supabase.auth.getSession().then(({ data }) => {
-      if (active) setState({ user: data.session?.user ?? null, loading: false });
-    });
-
-    const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
-      setState({ user: session?.user ?? null, loading: false });
-    });
-
-    return () => {
-      active = false;
-      sub.subscription.unsubscribe();
-    };
-  }, []);
-
-  return state;
+/** Thin convenience hook — current user + auth status from authStore. */
+export function useUser() {
+  const user = useAuthStore((s) => s.user);
+  const status = useAuthStore((s) => s.status);
+  return { user, status };
 }
