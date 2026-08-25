@@ -29,7 +29,7 @@ export function CourseSidebar({ role, collapsed = false }: { role: 'student' | '
                   collapsed ? 'justify-center px-0' : 'px-3.5',
                   isActive
                     ? 'bg-accent text-white'
-                    : 'text-text-dim dark:text-gray-200 hover:bg-bg-input hover:text-text dark:hover:text-white',
+                    : 'text-text hover:bg-bg-input hover:text-text',
                 )
               }
             >

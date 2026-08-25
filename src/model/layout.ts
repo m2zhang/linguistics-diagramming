@@ -1,3 +1,4 @@
+import { isThetaGrid } from './features';
 import { effectiveStyle, isLeaf, NodeStyle, TreeNode } from './types';
 
 export interface PositionedNode {
@@ -9,6 +10,9 @@ export interface PositionedNode {
   depth: number;
   style?: NodeStyle;
   features?: string[];
+  /** Per-feature colour overrides, carried through so the canvas and the
+   *  export path resolve a tag's colour identically. */
+  featureColors?: Record<string, string>;
   /**
    * Presentation step this node appears on, clamped so it is never earlier than
    * its parent's — a child revealed before its parent would hang in mid-air.
@@ -53,10 +57,32 @@ export const FEATURE_FONT_SIZE = 10;
 const MIN_NODE_W = 54;
 const MIN_NODE_HALF_H = 13;
 
+/**
+ * Extra height a theta-grid row claims for the rule drawn under it.
+ *
+ * Without this the rule sits in the row's own leading, 1px above where the next
+ * feature hangs — which reads as a line struck through the tag below it. The
+ * row has to actually get taller; nudging the rule up instead would just move
+ * the collision onto the grid's own descenders.
+ */
+const GRID_RULE_SPACE = 4;
+
+/** Height of one feature row, including a grid's rule when it has one. */
+function featureRowH(feature: string | undefined): number {
+  return FEATURE_LINE_H + (feature && isThetaGrid(feature) ? GRID_RULE_SPACE : 0);
+}
+
+/** Distance from the first feature row's top to the i-th row's top. */
+function featureRowOffset(features: string[] | undefined, i: number): number {
+  let y = 0;
+  for (let j = 0; j < i; j += 1) y += featureRowH(features?.[j]);
+  return y;
+}
+
 /** Vertical space the feature lines occupy below a label (0 when there are none). */
 export function featureDrop(n: { features?: string[] }): number {
   const count = n.features?.length ?? 0;
-  return count === 0 ? 0 : count * FEATURE_LINE_H + 3;
+  return count === 0 ? 0 : featureRowOffset(n.features, count) + 3;
 }
 
 /**
@@ -64,6 +90,14 @@ export function featureDrop(n: { features?: string[] }): number {
  * widths are estimated from character count — accurate enough for spacing,
  * hit-boxes and the selection highlight.
  */
+/**
+ * Estimated rendered width of a label. Shared by nodeBox() and the underline
+ * rule so the two cannot drift apart when the estimate is tuned.
+ */
+export function labelWidth(label: string, fontSize: number): number {
+  return label.length * fontSize * 0.62;
+}
+
 export function nodeBox(n: {
   label: string;
   features?: string[];
@@ -73,7 +107,7 @@ export function nodeBox(n: {
   y: number;
 }): { x: number; y: number; w: number; h: number } {
   const s = effectiveStyle(n.style, n.isLeaf);
-  const labelW = n.label.length * s.fontSize * 0.62;
+  const labelW = labelWidth(n.label, s.fontSize);
   let featureW = 0;
   for (const f of n.features ?? []) {
     featureW = Math.max(featureW, f.length * FEATURE_FONT_SIZE * 0.58);
@@ -95,7 +129,49 @@ export function edgeEndY(child: PositionedNode): number {
 
 /** Baseline (hanging) of the i-th feature line under a node. */
 export function featureLineY(n: PositionedNode, i: number): number {
-  return n.y + effectiveStyle(n.style, n.isLeaf).fontSize * 0.5 + 3 + i * FEATURE_LINE_H;
+  return (
+    n.y +
+    effectiveStyle(n.style, n.isLeaf).fontSize * 0.5 +
+    3 +
+    featureRowOffset(n.features, i)
+  );
+}
+
+/**
+ * Rule under an underlined *label* (the inspector's U button): its y, and how
+ * far it runs either side of the node's centre.
+ *
+ * Sits 1px above where featureLineY() hangs the first feature, so an underlined
+ * node can still carry tags without the two colliding. The rule tracks the
+ * label rather than the node box, which is padded by 18px and would leave the
+ * line floating well past the text it belongs to.
+ */
+export function underlineRule(n: PositionedNode): { y: number; halfWidth: number } {
+  const s = effectiveStyle(n.style, n.isLeaf);
+  return {
+    y: n.y + s.fontSize * 0.5 + 2,
+    halfWidth: Math.max(labelWidth(n.label, s.fontSize), s.fontSize) / 2,
+  };
+}
+
+/**
+ * Rule under the i-th feature line — the theta grid's own underline.
+ *
+ * featureLineY() is a *hanging* baseline, so the text runs from there down by
+ * FEATURE_FONT_SIZE; the rule goes 1px below that. FEATURE_LINE_H is 12 against
+ * a 10px font, so the line lands inside the row's own leading and never touches
+ * the next feature. featureDrop() already reserves the row, so the node box
+ * covers the rule without any change to hit-testing.
+ */
+export function featureUnderlineRule(
+  n: PositionedNode,
+  i: number,
+  feature: string,
+): { y: number; halfWidth: number } {
+  return {
+    y: featureLineY(n, i) + FEATURE_FONT_SIZE + 2,
+    halfWidth: Math.max(feature.length * FEATURE_FONT_SIZE * 0.58, FEATURE_FONT_SIZE) / 2,
+  };
 }
 
 /**
@@ -154,6 +230,7 @@ export function layoutTree(root: TreeNode, options: LayoutOptions = {}): LayoutR
       depth,
       style: node.style,
       features: node.features,
+      featureColors: node.featureColors,
       step,
     });
 

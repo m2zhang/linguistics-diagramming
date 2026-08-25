@@ -53,6 +53,25 @@ export const TernaryIcon = (p: SVGProps<SVGSVGElement>) => (
   </svg>
 );
 
+/* The two theta-grid presets. Both draw angle brackets over a rule, mirroring
+   what lands on the canvas: a pair of slots for ThetaRole, one for LinkFeature. */
+export const ThetaRoleIcon = (p: SVGProps<SVGSVGElement>) => (
+  <svg {...base(p)}>
+    <path d="M7 7 4 11l3 4M17 7l3 4-3 4" />
+    <circle cx="10" cy="11" r="1.4" fill="currentColor" stroke="none" />
+    <circle cx="14" cy="11" r="1.4" fill="currentColor" stroke="none" />
+    <path d="M4 19h16" />
+  </svg>
+);
+
+export const LinkFeatureIcon = (p: SVGProps<SVGSVGElement>) => (
+  <svg {...base(p)}>
+    <path d="M8 7 5 11l3 4M16 7l3 4-3 4" />
+    <circle cx="12" cy="11" r="1.4" fill="currentColor" stroke="none" />
+    <path d="M5 19h14" />
+  </svg>
+);
+
 export const DownloadIcon = (p: SVGProps<SVGSVGElement>) => (
   <svg {...base(p)}>
     <path d="M12 3v12M7 11l5 5 5-5M5 21h14" />
