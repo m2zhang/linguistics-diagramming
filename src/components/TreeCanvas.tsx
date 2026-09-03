@@ -1061,12 +1061,61 @@ export function TreeCanvas() {
             // Branch thickness lives on the CHILD: it describes the branch
             // running down into that node, which is what selecting it implies.
             const width = effectiveStyle(child.style, child.isLeaf).branchWidth;
+            const hidden = isHidden(child);
+
+            if (edge.triangle || child.triangle) {
+              const s = effectiveStyle(child.style, child.isLeaf);
+              const bottomY = edgeEndY(child);
+              const totalGap = bottomY - edgeStartY(parent);
+              const triangleH = Math.min(36, Math.max(18, totalGap * 0.45));
+              const triangleTopY = bottomY - triangleH;
+              const halfW = Math.max(28, (child.label.length * s.fontSize * 0.62) / 2 + 16);
+              const x1 = child.x - halfW;
+              const x2 = child.x + halfW;
+              const triangleColor = child.style?.color ?? 'var(--accent, #1555c5)';
+
+              return (
+                <g key={`${edge.parentId}-${edge.childId}`}>
+                  <line
+                    className={`connector${hidden ? ' unrevealed' : ''}`}
+                    x1={edge.from.x}
+                    y1={edgeStartY(parent)}
+                    x2={child.x}
+                    y2={triangleTopY}
+                    style={{ strokeWidth: width }}
+                  />
+                  <polygon
+                    className={`triangle-branch${hidden ? ' unrevealed' : ''}`}
+                    points={`${child.x},${triangleTopY} ${x2},${bottomY} ${x1},${bottomY}`}
+                    style={{
+                      fill: triangleColor,
+                      stroke: triangleColor,
+                      strokeWidth: 1.5,
+                      strokeLinejoin: 'round',
+                      cursor: tool === 'select' || tool === 'erase' ? 'pointer' : undefined,
+                    }}
+                    onPointerDown={(e) => {
+                      if (locked) return;
+                      if (tool === 'erase') {
+                        e.stopPropagation();
+                        deleteMultiple([child.id]);
+                        return;
+                      }
+                      if (tool !== 'select') return;
+                      e.stopPropagation();
+                      select(child.id, e.ctrlKey || e.metaKey);
+                    }}
+                  />
+                </g>
+              );
+            }
+
             return (
               <line
                 key={`${edge.parentId}-${edge.childId}`}
                 // A branch belongs to the child it leads down to, so it appears
                 // exactly when that child does.
-                className={`connector${isHidden(child) ? ' unrevealed' : ''}`}
+                className={`connector${hidden ? ' unrevealed' : ''}`}
                 x1={edge.from.x}
                 y1={edgeStartY(parent)}
                 x2={edge.to.x}

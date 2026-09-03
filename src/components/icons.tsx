@@ -53,6 +53,13 @@ export const TernaryIcon = (p: SVGProps<SVGSVGElement>) => (
   </svg>
 );
 
+export const TriangleIcon = (p: SVGProps<SVGSVGElement>) => (
+  <svg {...base(p)}>
+    <polygon points="12,3 4,14 20,14" fill="currentColor" stroke="currentColor" strokeWidth="1.2" strokeLinejoin="round" />
+    <text x="12" y="21" textAnchor="middle" fontSize="6.5" fill="currentColor" stroke="none" fontFamily="serif" fontWeight="600">text</text>
+  </svg>
+);
+
 export const DownloadIcon = (p: SVGProps<SVGSVGElement>) => (
   <svg {...base(p)}>
     <path d="M12 3v12M7 11l5 5 5-5M5 21h14" />

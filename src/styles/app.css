@@ -389,8 +389,10 @@
   rx: 6;
 }
 .connector {
+  fill: none;
   stroke: var(--connector);
   stroke-width: 1.5;
+  stroke-linejoin: round;
 }
 .drop-indicator {
   fill: none;

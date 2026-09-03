@@ -49,6 +49,7 @@ export function NodeInspector() {
   const renameNode = useTreeStore((s) => s.renameNode);
   const addChild = useTreeStore((s) => s.addChild);
   const setNodeStyle = useTreeStore((s) => s.setNodeStyle);
+  const setNodeTriangle = useTreeStore((s) => s.setNodeTriangle);
   const setNodeFeatures = useTreeStore((s) => s.setNodeFeatures);
   const setNodeStep = useTreeStore((s) => s.setNodeStep);
   const locked = useUiStore((s) => s.locked);
@@ -272,11 +273,27 @@ export function NodeInspector() {
         </div>
       </div>
 
-      {/* ---- Branch thickness ---- */}
+      {/* ---- Branch thickness & style ---- */}
       <div className="insp-group">
         <label className="insp-label" htmlFor="insp-branch">
-          Branch thickness
+          Branch
         </label>
+        <div className="insp-row" style={{ marginBottom: '8px', gap: '6px' }}>
+          <button
+            className={`btn ghost${!node.triangle ? ' active' : ''}`}
+            style={{ flex: 1, fontSize: '12px', padding: '4px 8px' }}
+            onClick={() => setNodeTriangle(targets, false)}
+          >
+            Line
+          </button>
+          <button
+            className={`btn ghost${node.triangle ? ' active' : ''}`}
+            style={{ flex: 1, fontSize: '12px', padding: '4px 8px' }}
+            onClick={() => setNodeTriangle(targets, true)}
+          >
+            ▲ Triangle
+          </button>
+        </div>
         <div className="insp-row">
           <input
             id="insp-branch"

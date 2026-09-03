@@ -60,14 +60,43 @@ export function buildExportSvg(tree: TreeNode, opts?: { background?: string | nu
     const parent = byId.get(e.parentId);
     const child = byId.get(e.childId);
     if (!parent || !child) continue;
-    const line = document.createElementNS(NS, 'line');
-    line.setAttribute('x1', String(e.from.x));
-    line.setAttribute('y1', String(edgeStartY(parent)));
-    line.setAttribute('x2', String(e.to.x));
-    line.setAttribute('y2', String(edgeEndY(child)));
-    line.setAttribute('stroke', colConnector);
-    line.setAttribute('stroke-width', String(effectiveStyle(child.style, child.isLeaf).branchWidth));
-    svg.appendChild(line);
+    if (e.triangle || child.triangle) {
+      const s = effectiveStyle(child.style, child.isLeaf);
+      const bottomY = edgeEndY(child);
+      const totalGap = bottomY - edgeStartY(parent);
+      const triangleH = Math.min(36, Math.max(18, totalGap * 0.45));
+      const triangleTopY = bottomY - triangleH;
+      const halfW = Math.max(28, (child.label.length * s.fontSize * 0.62) / 2 + 16);
+      const triangleColor = child.style?.color ?? cssVar('--accent', '#1555c5');
+
+      // Branch line from parent to apex of triangle
+      const line = document.createElementNS(NS, 'line');
+      line.setAttribute('x1', String(e.from.x));
+      line.setAttribute('y1', String(edgeStartY(parent)));
+      line.setAttribute('x2', String(child.x));
+      line.setAttribute('y2', String(triangleTopY));
+      line.setAttribute('stroke', colConnector);
+      line.setAttribute('stroke-width', String(s.branchWidth));
+      svg.appendChild(line);
+
+      // Solid blue triangle
+      const poly = document.createElementNS(NS, 'polygon');
+      poly.setAttribute('points', `${child.x},${triangleTopY} ${child.x + halfW},${bottomY} ${child.x - halfW},${bottomY}`);
+      poly.setAttribute('fill', triangleColor);
+      poly.setAttribute('stroke', triangleColor);
+      poly.setAttribute('stroke-width', '1.5');
+      poly.setAttribute('stroke-linejoin', 'round');
+      svg.appendChild(poly);
+    } else {
+      const line = document.createElementNS(NS, 'line');
+      line.setAttribute('x1', String(e.from.x));
+      line.setAttribute('y1', String(edgeStartY(parent)));
+      line.setAttribute('x2', String(e.to.x));
+      line.setAttribute('y2', String(edgeEndY(child)));
+      line.setAttribute('stroke', colConnector);
+      line.setAttribute('stroke-width', String(effectiveStyle(child.style, child.isLeaf).branchWidth));
+      svg.appendChild(line);
+    }
   }
 
   for (const n of layout.nodes) {

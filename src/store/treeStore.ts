@@ -125,6 +125,7 @@ interface TreeState {
   deleteMultiple: (ids: string[]) => void;
   addChild: (parentId: string, label?: string) => void;
   setNodeStyle: (ids: string[], patch: NodeStyle, coalesceKey?: string) => void;
+  setNodeTriangle: (ids: string[], triangle: boolean) => void;
   setNodeFeatures: (id: string, features: string[]) => void;
   /** Append one feature to a node. Returns false when the node already had it. */
   addNodeFeature: (id: string, feature: string) => boolean;
@@ -399,6 +400,20 @@ export const useTreeStore = create<TreeState>((set, get) => {
         // No treeRevision bump: styling changes neither the structure nor the
         // bracket text, and bumping would re-fit the view on every slider tick.
         return { ...snapshot(s, coalesceKey ?? null), tree };
+      }),
+
+    setNodeTriangle: (ids, triangle) =>
+      set((s) => {
+        if (!s.tree || ids.length === 0) return s;
+        let tree = s.tree;
+        for (const id of ids) {
+          tree = updateNode(tree, id, (n) => ({
+            ...n,
+            triangle: triangle || undefined,
+          }));
+        }
+        if (tree === s.tree) return s;
+        return { ...snapshot(s), tree, treeRevision: s.treeRevision + 1 };
       }),
 
     setNodeFeatures: (id, features) =>

@@ -1,6 +1,7 @@
-import { TreeNode } from '../model/types';
-import { BinaryIcon, NodeDownIcon, TernaryIcon } from './icons';
+import { cloneWithNewIds, TreeNode } from '../model/types';
+import { BinaryIcon, NodeDownIcon, TernaryIcon, TriangleIcon } from './icons';
 import { useUiStore } from '../store/uiStore';
+import { findNode, useTreeStore } from '../store/treeStore';
 
 function ChevronLeftIcon() {
   return (
@@ -48,6 +49,13 @@ export const PRESETS: Preset[] = [
     icon: <TernaryIcon className="preset-icon" />,
     build: () => node('X', [node('A'), node('B'), node('C')]),
   },
+  {
+    id: 'triangle',
+    name: 'Triangle',
+    desc: 'Phrase with triangle',
+    icon: <TriangleIcon className="preset-icon" />,
+    build: () => node('XP', [{ id: 'preset', label: 'text', children: [], triangle: true }]),
+  },
 ];
 
 export function NodeLibrary() {
@@ -58,6 +66,25 @@ export function NodeLibrary() {
   };
   const toggleSidebar = useUiStore((s) => s.toggleSidebar);
   const locked = useUiStore((s) => s.locked);
+  const toast = useUiStore((s) => s.toast);
+
+  const tree = useTreeStore((s) => s.tree);
+  const selectedId = useTreeStore((s) => s.selectedId);
+  const attachPreset = useTreeStore((s) => s.attachPreset);
+  const replaceTree = useTreeStore((s) => s.replaceTree);
+
+  const handlePresetClick = (preset: Preset) => {
+    if (locked) return;
+    const built = preset.build();
+    if (selectedId && findNode(tree, selectedId)) {
+      attachPreset(selectedId, built);
+    } else if (tree) {
+      attachPreset(tree.id, built);
+    } else {
+      replaceTree(cloneWithNewIds(built));
+    }
+    toast(`Added ${preset.name}`, 'success');
+  };
 
   return (
     <div className="section">
@@ -78,6 +105,7 @@ export function NodeLibrary() {
             className="preset"
             draggable={!locked}
             onDragStart={(e) => onDragStart(e, p)}
+            onClick={() => handlePresetClick(p)}
           >
             {p.icon}
             <div>
