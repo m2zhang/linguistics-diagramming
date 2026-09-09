@@ -129,6 +129,24 @@
   display: grid;
   gap: 10px;
 }
+.case-label-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 600;
+}
+.case-label-field input {
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  padding: 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-panel);
+  color: var(--text);
+  font: inherit;
+}
 .preset {
   position: relative;
   display: flex;
@@ -389,8 +407,10 @@
   rx: 6;
 }
 .connector {
+  fill: none;
   stroke: var(--connector);
   stroke-width: 1.5;
+  stroke-linejoin: round;
 }
 .drop-indicator {
   fill: none;

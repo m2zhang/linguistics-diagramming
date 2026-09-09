@@ -61,7 +61,14 @@ function nodeToQtree(node: TreeNode): string {
   if (isLeaf(node)) {
     return label;
   }
-  const children = node.children.map(nodeToQtree).join(' ');
+  const children = node.children
+    .map((c) => {
+      if (c.triangle && isLeaf(c)) {
+        return `\\qroof{${nodeLabel(c)}}.${label}`;
+      }
+      return nodeToQtree(c);
+    })
+    .join(' ');
   return `[.${label} ${children} ]`;
 }
 
@@ -75,7 +82,7 @@ function nodeToForest(node: TreeNode, indentLevel: number = 0): string {
   const label = nodeLabel(node);
 
   if (isLeaf(node)) {
-    return `${indent}[${label}]`;
+    return node.triangle ? `${indent}[${label}, roof]` : `${indent}[${label}]`;
   }
 
   const children = node.children
