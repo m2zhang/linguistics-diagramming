@@ -109,6 +109,21 @@ export function featureColor(label: string): string {
 }
 
 /**
+ * The colour a feature actually renders in: an explicit per-node override if
+ * one is set, otherwise the derived hue.
+ *
+ * Every render path goes through here rather than featureColor() directly, so
+ * the canvas, the inspector chips and the exported SVG cannot disagree about
+ * which colour won.
+ */
+export function resolveFeatureColor(
+  label: string,
+  overrides?: Record<string, string>,
+): string {
+  return overrides?.[label] ?? featureColor(label);
+}
+
+/**
  * The colour a tagged node itself reads as — its label and its outline — or null
  * when it carries no features.
  *
@@ -117,10 +132,43 @@ export function featureColor(label: string): string {
  * that identity is stable when a second tag is added. Each tag line underneath
  * still renders in its own colour, so nothing is lost on a multi-tag node.
  */
-export function nodeTagColor(features?: string[]): string | null {
+export function nodeTagColor(
+  features?: string[],
+  overrides?: Record<string, string>,
+): string | null {
   const first = features?.[0];
-  return first ? featureColor(first) : null;
+  return first ? resolveFeatureColor(first, overrides) : null;
 }
 
 /** MIME type for a feature dragged out of the sidebar onto a node. */
 export const FEATURE_DND_TYPE = 'application/x-feature';
+
+// ---------------------------------------------------------------------------
+// Theta grids
+// ---------------------------------------------------------------------------
+
+/**
+ * TreeForm-style theta grids, carried as ordinary feature strings.
+ *
+ * A grid belongs to the node that assigns it — drop one on V and it renders
+ * directly under V's label, which is exactly where the feature lines already
+ * go. Storing it as a feature therefore needs no new model field, and it
+ * inherits tagging, the inspector, persistence and export unchanged.
+ *
+ * The space after the comma is safe here in a way it is not in a label:
+ * serializeBracket() emits labels only, so a feature never passes through the
+ * whitespace-delimited bracket parser that would split `<θ, θ>` in two.
+ */
+export const THETA_ROLE_GRID = '<θ, θ>';
+export const LINK_FEATURE_GRID = '<θ>';
+
+/**
+ * Whether a feature is a theta grid, and so renders with a rule beneath it.
+ *
+ * Matched on shape rather than an exact string so a renamed grid keeps its
+ * line — `<Agent, Theme>` is still a grid. Derived, never stored, for the same
+ * reason featureColor() is: no persistence format has to learn about grids.
+ */
+export function isThetaGrid(feature: string): boolean {
+  return /^<.*>$/.test(feature.trim());
+}

@@ -372,6 +372,45 @@
   font-style: italic;
   font-family: var(--font-ui);
 }
+/**
+ * Left navigation rail.
+ *
+ * Paints the rail surface and, crucially, re-points the theme's text/border
+ * tokens *within* it. Tailwind's utilities compile to var(--color-text) ->
+ * var(--text), so redefining --text here cascades to every child — the nav
+ * links, the course title, BackButton, the collapse button — without touching
+ * a single component. That is what makes a dark rail viable in light mode:
+ * otherwise each one would need its own `dark:`-style override and any new
+ * child added later would silently render near-black on near-black.
+ */
+.app-rail {
+  background: var(--bg-rail);
+  --text: var(--rail-text);
+  --text-dim: var(--rail-text-dim);
+  --text-faint: var(--rail-text-dim);
+  --border: var(--rail-border);
+  --border-strong: var(--rail-border);
+  --bg-input: var(--rail-hover);
+}
+
+/* Theta-grid rule. Mirrors .tnode-label's colour cascade below, so the line
+   follows its label through the leaf and tagged cases. */
+.tnode-underline {
+  stroke: var(--node-internal);
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  pointer-events: none;
+}
+.tnode-underline.leaf {
+  stroke: var(--node-leaf);
+}
+/* The theta grid's own rule. Stroke is set inline from featureColor() so it
+   matches its grid text, exactly as .tnode-feature's fill is. */
+.tnode-feature-underline {
+  stroke-width: 1;
+  stroke-linecap: round;
+  pointer-events: none;
+}
 .tnode-feature {
   font-family: var(--font-mono);
   fill: var(--text-dim);
@@ -388,6 +427,9 @@
    inspector colour still beats both, since that lands as an inline style. */
 .tnode-group.tagged .tnode-label {
   fill: var(--tag-color);
+}
+.tnode-group.tagged .tnode-underline {
+  stroke: var(--tag-color);
 }
 .tnode-tag-outline {
   fill: none;
@@ -548,6 +590,32 @@ select.insp-input {
   font-family: var(--font-mono);
   font-size: 11.5px;
   padding: 2px 3px 2px 7px;
+}
+/* The chip's text doubles as an edit affordance — click it to rename the
+   feature in place. Styled to look like the plain text it replaces, so the
+   chip reads the same until you hover it. */
+.feature-chip-text {
+  background: none;
+  border: none;
+  color: inherit;
+  font: inherit;
+  padding: 0;
+  cursor: text;
+}
+.feature-chip-text:hover {
+  text-decoration: underline;
+}
+.feature-chip-input {
+  background: var(--bg-panel);
+  border: 1px solid var(--tag-color, var(--accent));
+  border-radius: 3px;
+  color: inherit;
+  font: inherit;
+  padding: 0 3px;
+  /* Grows with the value rather than sitting at a fixed width, so a long grid
+     like <Agent, Theme> stays fully visible while being typed. */
+  min-width: 6ch;
+  width: 12ch;
 }
 .feature-chip-x {
   background: none;

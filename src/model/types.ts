@@ -30,6 +30,12 @@ export interface NodeStyle {
   fontSize?: number;
   fontWeight?: number;
   italic?: boolean;
+  /**
+   * Rule drawn under the label. Kept as a general style so the Node Inspector's
+   * U button can underline any node; the theta-grid presets draw their own rule
+   * under the feature line instead — see isThetaGrid() in model/features.
+   */
+  underline?: boolean;
   /** Concrete colour (hex), not a CSS var — see FONT_STACKS. Absent = theme default. */
   color?: string;
   /** Stroke width of the branch running from this node's PARENT down to it. */
@@ -42,6 +48,7 @@ export interface ResolvedNodeStyle {
   fontSize: number;
   fontWeight: number;
   italic: boolean;
+  underline: boolean;
   branchWidth: number;
   color?: string;
 }
@@ -52,6 +59,7 @@ const INTERNAL_DEFAULTS: ResolvedNodeStyle = {
   fontSize: 16,
   fontWeight: 600,
   italic: false,
+  underline: false,
   branchWidth: 1.5,
 };
 
@@ -98,6 +106,16 @@ export interface TreeNode {
   style?: NodeStyle;
   /** Syntactic features shown under the label, e.g. ['+wh', 'uCase:nom']. */
   features?: string[];
+  /**
+   * Per-feature colour overrides, keyed by the feature string.
+   *
+   * featureColor() derives a colour from the text so a palette never has to
+   * travel with a file; this is the deliberate escape hatch for when a node
+   * needs a specific colour anyway (theta grids especially, which otherwise
+   * take whatever hue their text hashes to). Absent keys still resolve the
+   * derived way, so nothing changes for trees that never set one.
+   */
+  featureColors?: Record<string, string>;
   /**
    * Presentation step this node first appears on. Absent = 0, so files saved
    * before stepping existed present as a single step.
@@ -189,6 +207,7 @@ export function cloneWithNewIds(node: TreeNode): TreeNode {
   };
   if (node.style) copy.style = { ...node.style };
   if (node.features) copy.features = [...node.features];
+  if (node.featureColors) copy.featureColors = { ...node.featureColors };
   if (node.triangle !== undefined) copy.triangle = node.triangle;
   return copy;
 }
@@ -211,6 +230,7 @@ export function carryOverDecorations(from: TreeNode | null, to: TreeNode): TreeN
   };
   if (from.style) next.style = { ...from.style };
   if (from.features?.length) next.features = [...from.features];
+  if (from.featureColors) next.featureColors = { ...from.featureColors };
   // Step stamps must survive a re-parse too, or typing in the bracket editor
   // would reset the whole tree to step 0.
   if (from.step !== undefined) next.step = from.step;

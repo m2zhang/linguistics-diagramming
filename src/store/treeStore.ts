@@ -127,6 +127,12 @@ interface TreeState {
   setNodeStyle: (ids: string[], patch: NodeStyle, coalesceKey?: string) => void;
   setNodeTriangle: (ids: string[], triangle: boolean) => void;
   setNodeFeatures: (id: string, features: string[]) => void;
+  /**
+   * Override the colour one feature renders in, across every given node that
+   * carries it. `undefined` clears the override and returns it to the hue
+   * featureColor() derives from the text.
+   */
+  setNodeFeatureColor: (ids: string[], feature: string, color: string | undefined) => void;
   /** Append one feature to a node. Returns false when the node already had it. */
   addNodeFeature: (id: string, feature: string) => boolean;
   attachPreset: (targetId: string, preset: TreeNode) => void;
@@ -419,10 +425,41 @@ export const useTreeStore = create<TreeState>((set, get) => {
     setNodeFeatures: (id, features) =>
       set((s) => {
         if (!s.tree) return s;
-        const tree = updateNode(s.tree, id, (n) => ({
-          ...n,
-          features: normalizeFeatures(features),
-        }));
+        const next = normalizeFeatures(features);
+        const tree = updateNode(s.tree, id, (n) => {
+          // Drop overrides for features the node no longer carries, so a
+          // removed-and-retyped tag does not silently inherit an old colour.
+          const kept = Object.fromEntries(
+            Object.entries(n.featureColors ?? {}).filter(([k]) => (next ?? []).includes(k)),
+          );
+          return {
+            ...n,
+            features: next,
+            featureColors: Object.keys(kept).length > 0 ? kept : undefined,
+          };
+        });
+        if (tree === s.tree) return s;
+        return { ...snapshot(s), tree };
+      }),
+
+    setNodeFeatureColor: (ids, feature, color) =>
+      set((s) => {
+        if (!s.tree) return s;
+        let tree = s.tree;
+        for (const id of ids) {
+          tree = updateNode(tree, id, (n) => {
+            // Only touch nodes that actually carry the feature, so applying a
+            // colour across a multi-selection cannot invent overrides for tags
+            // a node does not have.
+            if (!(n.features ?? []).includes(feature)) return n;
+            const map = { ...(n.featureColors ?? {}) };
+            // `undefined` means "back to the derived hue", which is a delete
+            // rather than storing a null the render path would have to handle.
+            if (color === undefined) delete map[feature];
+            else map[feature] = color;
+            return { ...n, featureColors: Object.keys(map).length > 0 ? map : undefined };
+          });
+        }
         if (tree === s.tree) return s;
         return { ...snapshot(s), tree };
       }),

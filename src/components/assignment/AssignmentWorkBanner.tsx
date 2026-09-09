@@ -12,6 +12,7 @@ import { useUiStore } from '../../store/uiStore';
 
 const STATUS_LABEL: Record<string, string> = {
   idle: '',
+  pending: 'Unsaved changes',
   saving: 'Saving…',
   saved: 'Draft saved',
   error: 'Save failed',
@@ -58,6 +59,9 @@ export function AssignmentWorkBanner() {
     <>
       <div className="absolute top-3.5 right-4 z-10 flex items-center gap-3 rounded-[var(--radius)] border border-accent/30 bg-bg-panel px-3.5 py-1.5 shadow-[var(--shadow)]">
         <span className="flex items-center gap-1.5 text-xs font-medium text-text-dim">
+          {status === 'pending' && (
+            <span className="size-1.5 rounded-full bg-text-dim/60" aria-hidden="true" />
+          )}
           {status === 'saving' && <Loader2 size={12} className="animate-spin text-accent" />}
           {status === 'saved' && <Check size={12} className="text-success" />}
           {STATUS_LABEL[status]}

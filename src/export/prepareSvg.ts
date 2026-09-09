@@ -4,17 +4,34 @@ import {
   FEATURE_FONT_SIZE,
   featureLineY,
   layoutTree,
+  featureUnderlineRule,
   nodeBox,
   PositionedNode,
+  underlineRule,
 } from '../model/layout';
 import { effectiveStyle, FONT_STACKS, TreeNode } from '../model/types';
-import { featureColor, nodeTagColor } from '../model/features';
+import { isThetaGrid, nodeTagColor, resolveFeatureColor } from '../model/features';
 import { currentProjectState } from './projectState';
+import { PDF_UNICODE_FONT_NAME } from './pdfFontName';
 
 export interface PreparedSvg {
   svg: SVGSVGElement;
   width: number;
   height: number;
+}
+
+/**
+ * The font stack to request for a given string.
+ *
+ * Pure-ASCII text keeps its stack untouched. Anything else gets the embedded
+ * Unicode font prepended, because jsPDF's standard fonts cannot encode it (see
+ * pdfUnicodeFont.ts). The name resolves only inside jsPDF — a browser cannot
+ * find it and falls straight through to the real stack, so the PNG and SVG
+ * exports render byte-identically to before.
+ */
+function fontFamilyFor(text: string, stack: string): string {
+  // eslint-disable-next-line no-control-regex
+  return /[^\u0000-\u007F]/.test(text) ? `${PDF_UNICODE_FONT_NAME}, ${stack}` : stack;
 }
 
 /** Resolve a CSS variable to a concrete colour against the document root. */
@@ -101,7 +118,7 @@ export function buildExportSvg(tree: TreeNode, opts?: { background?: string | nu
 
   for (const n of layout.nodes) {
     const s = effectiveStyle(n.style, n.isLeaf);
-    const tagColor = nodeTagColor(n.features);
+    const tagColor = nodeTagColor(n.features, n.featureColors);
 
     // Mirrors the canvas: a tagged node is outlined in its first tag's colour.
     // Drawn before the label so the text sits on top. nodeBox().h already spans
@@ -128,13 +145,28 @@ export function buildExportSvg(tree: TreeNode, opts?: { background?: string | nu
     text.setAttribute('dominant-baseline', 'central');
     text.setAttribute('font-size', String(s.fontSize));
     text.setAttribute('font-weight', String(s.fontWeight));
-    text.setAttribute('font-family', FONT_STACKS[s.font]);
+    text.setAttribute('font-family', fontFamilyFor(n.label, FONT_STACKS[s.font]));
     if (s.italic) text.setAttribute('font-style', 'italic');
     // Same precedence the canvas applies: an explicit inspector colour wins,
     // then the tag colour, then the default internal/leaf hue.
     text.setAttribute('fill', s.color ?? tagColor ?? (n.isLeaf ? colLeaf : colInternal));
     text.textContent = n.label;
     svg.appendChild(text);
+
+    // Theta-grid rule, drawn as a real line for the same reason the canvas does:
+    // svg2pdf does not carry text-decoration into the PDF.
+    if (s.underline) {
+      const rule = underlineRule(n);
+      const line = document.createElementNS(NS, 'line');
+      line.setAttribute('x1', String(n.x - rule.halfWidth));
+      line.setAttribute('x2', String(n.x + rule.halfWidth));
+      line.setAttribute('y1', String(rule.y));
+      line.setAttribute('y2', String(rule.y));
+      line.setAttribute('stroke', s.color ?? tagColor ?? (n.isLeaf ? colLeaf : colInternal));
+      line.setAttribute('stroke-width', '1.5');
+      line.setAttribute('stroke-linecap', 'round');
+      svg.appendChild(line);
+    }
 
     (n.features ?? []).forEach((f, i) => {
       const feat = document.createElementNS(NS, 'text');
@@ -143,12 +175,28 @@ export function buildExportSvg(tree: TreeNode, opts?: { background?: string | nu
       feat.setAttribute('text-anchor', 'middle');
       feat.setAttribute('dominant-baseline', 'hanging');
       feat.setAttribute('font-size', String(FEATURE_FONT_SIZE));
-      feat.setAttribute('font-family', FONT_STACKS.mono);
+      feat.setAttribute('font-family', fontFamilyFor(f, FONT_STACKS.mono));
       // Same resolver the canvas uses, so an exported tag is the colour the
       // instructor saw. featureColor() always returns a hex.
-      feat.setAttribute('fill', featureColor(f));
-      feat.textContent = `[${f}]`;
+      feat.setAttribute('fill', resolveFeatureColor(f, n.featureColors));
+      // Mirrors the canvas: a theta grid brings its own angle brackets and a
+      // rule; everything else renders in square brackets.
+      const grid = isThetaGrid(f);
+      feat.textContent = grid ? f : `[${f}]`;
       svg.appendChild(feat);
+
+      if (grid) {
+        const rule = featureUnderlineRule(n, i, f);
+        const gridLine = document.createElementNS(NS, 'line');
+        gridLine.setAttribute('x1', String(n.x - rule.halfWidth));
+        gridLine.setAttribute('x2', String(n.x + rule.halfWidth));
+        gridLine.setAttribute('y1', String(rule.y));
+        gridLine.setAttribute('y2', String(rule.y));
+        gridLine.setAttribute('stroke', resolveFeatureColor(f, n.featureColors));
+        gridLine.setAttribute('stroke-width', '1');
+        gridLine.setAttribute('stroke-linecap', 'round');
+        svg.appendChild(gridLine);
+      }
     });
   }
 

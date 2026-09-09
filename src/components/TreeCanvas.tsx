@@ -5,8 +5,10 @@ import {
   FEATURE_FONT_SIZE,
   featureLineY,
   layoutTree,
+  featureUnderlineRule,
   nodeBox,
   PositionedNode,
+  underlineRule,
 } from '../model/layout';
 import { findNode, useTreeStore } from '../store/treeStore';
 import { INSTRUCTOR_TOOLS, resolveShortcut, type CanvasTool } from '../model/shortcuts';
@@ -31,8 +33,9 @@ import {
 } from '../model/types';
 import {
   FEATURE_DND_TYPE,
-  featureColor,
+  isThetaGrid,
   nodeTagColor,
+  resolveFeatureColor,
   PEN_COLORS,
   textNoteColor,
 } from '../model/features';
@@ -847,6 +850,18 @@ export function TreeCanvas() {
           const preset = PRESETS[action.index];
           if (!preset) return;
           e.preventDefault();
+          // Feature presets (the theta grids) tag the selection instead of
+          // building nodes. PRESET_KEYS only binds the branching presets today,
+          // so this is the guard that keeps a future binding honest.
+          if (preset.feature) {
+            if (selectedId && addNodeFeature(selectedId, preset.feature)) {
+              toast(`Added ${preset.feature}`, 'success');
+            } else {
+              toast('Select a node first, or drag the grid onto one.', 'info');
+            }
+            return;
+          }
+          if (!preset.build) return;
           const built = preset.build();
           if (selectedId && findNode(tree, selectedId)) attachPreset(selectedId, built);
           else if (tree) attachPreset(tree.id, built);
@@ -1131,7 +1146,7 @@ export function TreeCanvas() {
             const selected = selectedIds.includes(n.id) && !locked;
             const isDrop = n.id === dropTarget;
             const box = nodeBox(n);
-            const tagColor = nodeTagColor(n.features);
+            const tagColor = nodeTagColor(n.features, n.featureColors);
             const hidden = isHidden(n);
             return (
               <g
@@ -1206,26 +1221,61 @@ export function TreeCanvas() {
                 >
                   {n.label}
                 </text>
-                {(n.features ?? []).map((f, i) => (
-                  <text
-                    key={`${n.id}-f${i}`}
-                    className="tnode-feature"
-                    x={n.x}
-                    y={featureLineY(n, i)}
-                    fontSize={FEATURE_FONT_SIZE}
-                    textAnchor="middle"
-                    dominantBaseline="hanging"
-                    // Inline style, not a fill attribute: `.tnode-feature` sets
-                    // fill in CSS and any rule outranks a presentation
-                    // attribute, which is what left every tag rendering
-                    // --text-dim grey on canvas while exports came out right.
-                    // Per-tag rather than the group's --tag-color, so a node
-                    // carrying [+CASE] and [+past] shows red then blue.
-                    style={{ fill: featureColor(f) }}
-                  >
-                    [{f}]
-                  </text>
-                ))}
+                {/* Theta-grid rule. Colour is left to CSS so it follows the
+                    label through the default/leaf/tagged cases, with an
+                    explicit inspector colour overriding as it does for text. */}
+                {effectiveStyle(n.style, n.isLeaf).underline &&
+                  (() => {
+                    const rule = underlineRule(n);
+                    const color = effectiveStyle(n.style, n.isLeaf).color;
+                    return (
+                      <line
+                        className={`tnode-underline${n.isLeaf ? ' leaf' : ''}`}
+                        x1={n.x - rule.halfWidth}
+                        x2={n.x + rule.halfWidth}
+                        y1={rule.y}
+                        y2={rule.y}
+                        {...(color ? { stroke: color } : null)}
+                      />
+                    );
+                  })()}
+                {(n.features ?? []).map((f, i) => {
+                  // A theta grid brings its own angle brackets and a rule; every
+                  // other feature renders in square brackets as before.
+                  const grid = isThetaGrid(f);
+                  const gridRule = grid ? featureUnderlineRule(n, i, f) : null;
+                  return (
+                    <g key={`${n.id}-f${i}`}>
+                      <text
+                        className="tnode-feature"
+                        x={n.x}
+                        y={featureLineY(n, i)}
+                        fontSize={FEATURE_FONT_SIZE}
+                        textAnchor="middle"
+                        dominantBaseline="hanging"
+                        // Inline style, not a fill attribute: `.tnode-feature` sets
+                        // fill in CSS and any rule outranks a presentation
+                        // attribute, which is what left every tag rendering
+                        // --text-dim grey on canvas while exports came out right.
+                        // Per-tag rather than the group's --tag-color, so a node
+                        // carrying [+CASE] and [+past] shows red then blue.
+                        style={{ fill: resolveFeatureColor(f, n.featureColors) }}
+                      >
+                        {grid ? f : `[${f}]`}
+                      </text>
+                      {gridRule && (
+                        <line
+                          className="tnode-feature-underline"
+                          x1={n.x - gridRule.halfWidth}
+                          x2={n.x + gridRule.halfWidth}
+                          y1={gridRule.y}
+                          y2={gridRule.y}
+                          stroke={resolveFeatureColor(f, n.featureColors)}
+                        />
+                      )}
+                    </g>
+                  );
+                })}
               </g>
             );
           })}

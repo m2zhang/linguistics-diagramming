@@ -48,7 +48,7 @@ export function DashboardSidebar({ view, onChange }: { view: DashboardView; onCh
     <aside
       style={{ width: collapsed ? 64 : width }}
       className={cn(
-        'relative flex shrink-0 flex-col border-r border-border bg-bg-panel py-4 select-none',
+        'relative flex shrink-0 flex-col border-r border-border app-rail py-4 select-none',
         !isResizing && 'transition-[width] duration-200'
       )}
     >
@@ -84,7 +84,7 @@ export function DashboardSidebar({ view, onChange }: { view: DashboardView; onCh
                   'flex w-full items-center gap-2.5 rounded-full py-2 text-left text-sm font-semibold tracking-tight transition-colors',
                   'font-[family-name:var(--font-display)]',
                   collapsed ? 'justify-center px-0' : 'px-3.5',
-                  view === key ? 'bg-accent text-white' : 'text-text-dim dark:text-gray-200 hover:bg-bg-input hover:text-text dark:hover:text-white',
+                  view === key ? 'bg-accent text-white' : 'text-text hover:bg-bg-input hover:text-text',
                 )}
               >
                 <Icon size={16} className="shrink-0" />

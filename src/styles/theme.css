@@ -3,6 +3,16 @@
   --bg: #f4f6fb;
   --bg-elevated: #ffffff;
   --bg-panel: #ffffff;
+  /* Left navigation rails. The surface stays light like the rest of the app;
+     what these tokens change is the *text* on it. The rail's labels previously
+     used --text-dim (#5b6076), which reads as washed-out grey against a white
+     rail — so the rail gets its own, deliberately darker pair. Dark mode was
+     already fine and keeps the ordinary tokens. */
+  --bg-rail: #ffffff;
+  --rail-text: #0f1117;
+  --rail-text-dim: #3d4356;
+  --rail-border: #dde1ec;
+  --rail-hover: #f0f2f8;
   --bg-input: #f0f2f8;
   --border: #dde1ec;
   --border-strong: #c4cad9;
@@ -37,6 +47,13 @@
   --bg: #0f1117;
   --bg-elevated: #171a23;
   --bg-panel: #1c2030;
+  /* Dark mode already reads correctly, so the rail keeps the panel colour and
+     its contents keep the ordinary dark-theme text/border tokens. */
+  --bg-rail: #1c2030;
+  --rail-text: #e7e9ee;
+  --rail-text-dim: #9aa1b3;
+  --rail-border: #2a2f40;
+  --rail-hover: #11141d;
   --bg-input: #11141d;
   --border: #2a2f40;
   --border-strong: #3a4156;

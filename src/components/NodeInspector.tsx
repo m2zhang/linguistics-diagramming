@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { effectiveStyle, FONT_LABELS, NodeFont, NodeStyle } from '../model/types';
-import { featureColor } from '../model/features';
+import { isThetaGrid, resolveFeatureColor } from '../model/features';
 import { findNode, useTreeStore } from '../store/treeStore';
 import { useUiStore } from '../store/uiStore';
 
@@ -51,6 +51,7 @@ export function NodeInspector() {
   const setNodeStyle = useTreeStore((s) => s.setNodeStyle);
   const setNodeTriangle = useTreeStore((s) => s.setNodeTriangle);
   const setNodeFeatures = useTreeStore((s) => s.setNodeFeatures);
+  const setNodeFeatureColor = useTreeStore((s) => s.setNodeFeatureColor);
   const setNodeStep = useTreeStore((s) => s.setNodeStep);
   const locked = useUiStore((s) => s.locked);
   const usedSteps = useUiStore((s) => s.usedSteps);
@@ -64,6 +65,9 @@ export function NodeInspector() {
 
   const [labelDraft, setLabelDraft] = useState('');
   const [featureDraft, setFeatureDraft] = useState('');
+  /** Which feature chip is currently being edited in place, and its draft text. */
+  const [editingFeature, setEditingFeature] = useState<string | null>(null);
+  const [featureEdit, setFeatureEdit] = useState('');
 
   // Re-sync the drafts whenever the selection (or its label) changes elsewhere.
   useEffect(() => {
@@ -111,9 +115,17 @@ export function NodeInspector() {
     else setLabelDraft(node.label);
   };
 
+  /** Split "a, b" into separate features — except for a theta grid, whose
+   *  comma is part of the notation (`<Agent, Theme>` is one grid, not two). */
+  const splitFeatures = (draft: string): string[] => {
+    const whole = draft.trim();
+    if (isThetaGrid(whole)) return [whole];
+    return draft.split(',').map((s) => s.trim()).filter(Boolean);
+  };
+
   const addFeature = () => {
     // Accept "a, b" so a whole bundle can be pasted in one go.
-    const parts = featureDraft.split(',').map((s) => s.trim()).filter(Boolean);
+    const parts = splitFeatures(featureDraft);
     if (parts.length === 0) return;
     setNodeFeatures(node.id, [...(node.features ?? []), ...parts]);
     setFeatureDraft('');
@@ -121,6 +133,32 @@ export function NodeInspector() {
 
   const removeFeature = (f: string) =>
     setNodeFeatures(node.id, (node.features ?? []).filter((x) => x !== f));
+
+  /** The node's explicit override for a feature, or undefined when it is still
+   *  resolving to the derived hue. Drives which swatch reads as active. */
+  const featureColorOf = (f: string): string | undefined => node.featureColors?.[f];
+
+  /** Replace one feature in place, keeping its position so an edited theta
+   *  grid does not jump to the bottom of the node's tag list. */
+  const replaceFeature = (old: string, next: string) => {
+    const parts = splitFeatures(next);
+    const current = node.features ?? [];
+    const i = current.indexOf(old);
+    if (i === -1) return;
+    const updated = parts.length === 0
+      ? current.filter((x) => x !== old)
+      : [...current.slice(0, i), ...parts, ...current.slice(i + 1)];
+    // De-duplicate, mirroring normalizeFeatures, so editing one chip onto an
+    // existing value collapses instead of producing a twin.
+    const carriedColor = featureColorOf(old);
+    setNodeFeatures(node.id, [...new Set(updated)]);
+    // Overrides are keyed by the feature text, and setNodeFeatures prunes keys
+    // whose feature is gone — so a rename would silently drop a colour the user
+    // had chosen. Re-apply it under the new name.
+    if (carriedColor && parts.length > 0 && parts[0] !== old) {
+      setNodeFeatureColor([node.id], parts[0], carriedColor);
+    }
+  };
 
   return (
     <div className={`inspector${locked ? ' read-only' : ''}`}>
@@ -218,6 +256,15 @@ export function NodeInspector() {
             onClick={() => patch({ italic: !style.italic })}
           >
             I
+          </button>
+          <button
+            className={`btn ghost${style.underline ? ' active' : ''}`}
+            style={{ padding: '4px 10px', textDecoration: 'underline', fontFamily: 'Georgia, serif' }}
+            title="Underline (theta grid)"
+            aria-pressed={style.underline}
+            onClick={() => patch({ underline: !style.underline })}
+          >
+            U
           </button>
         </div>
 
@@ -326,9 +373,42 @@ export function NodeInspector() {
               <span
                 key={f}
                 className="feature-chip"
-                style={{ '--tag-color': featureColor(f) } as React.CSSProperties}
+                style={{ '--tag-color': resolveFeatureColor(f, node.featureColors) } as React.CSSProperties}
               >
-                {f}
+                {editingFeature === f ? (
+                  <input
+                    className="feature-chip-input"
+                    autoFocus
+                    value={featureEdit}
+                    aria-label={`Edit feature ${f}`}
+                    onChange={(e) => setFeatureEdit(e.target.value)}
+                    onBlur={() => {
+                      replaceFeature(f, featureEdit);
+                      setEditingFeature(null);
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') e.currentTarget.blur();
+                      if (e.key === 'Escape') {
+                        setEditingFeature(null);
+                        e.currentTarget.blur();
+                      }
+                      // The canvas binds Delete/Backspace to "remove node"; without
+                      // this the key reaches it while the caret is in this input.
+                      e.stopPropagation();
+                    }}
+                  />
+                ) : (
+                  <button
+                    className="feature-chip-text"
+                    title={`Edit ${f}`}
+                    onClick={() => {
+                      setEditingFeature(f);
+                      setFeatureEdit(f);
+                    }}
+                  >
+                    {f}
+                  </button>
+                )}
                 <button
                   className="feature-chip-x"
                   title={`Remove ${f}`}
@@ -338,6 +418,37 @@ export function NodeInspector() {
                   ×
                 </button>
               </span>
+            ))}
+          </div>
+        )}
+        {/* Colour override for the chip being edited. Tags normally derive
+            their hue from their text (see featureColor), which leaves a theta
+            grid on whatever its characters happen to hash to — this is the
+            way to pin one deliberately. Applies across the whole selection,
+            like typography, so a layer of grids can be recoloured at once. */}
+        {editingFeature && (
+          <div className="insp-row" style={{ gap: '6px', flexWrap: 'wrap' }}>
+            <button
+              className={`insp-swatch default${
+                featureColorOf(editingFeature) === undefined ? ' active' : ''
+              }`}
+              title="Automatic colour (derived from the text)"
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={() => setNodeFeatureColor(targets, editingFeature, undefined)}
+            />
+            {COLORS.map((c) => (
+              <button
+                key={c.value}
+                className={`insp-swatch${
+                  featureColorOf(editingFeature) === c.value ? ' active' : ''
+                }`}
+                style={{ background: c.value }}
+                title={c.name}
+                // Keep focus in the chip input, or the blur would commit and
+                // unmount this row before the click lands.
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={() => setNodeFeatureColor(targets, editingFeature, c.value)}
+              />
             ))}
           </div>
         )}
