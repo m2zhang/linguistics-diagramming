@@ -60,6 +60,34 @@ export const TriangleIcon = (p: SVGProps<SVGSVGElement>) => (
   </svg>
 );
 
+export const XBarIcon = (p: SVGProps<SVGSVGElement>) => (
+  <svg {...base(p)} viewBox="0 0 100 76">
+    <path d="M44 16 20 30M44 16 65 30M65 44 47 58M65 44 84 58" strokeWidth="2" />
+    <g fill="var(--bg-panel)" strokeWidth="1.5">
+      <rect x="30" y="2" width="28" height="14" rx="5" />
+      <rect x="3" y="30" width="34" height="14" rx="5" />
+      <rect x="51" y="30" width="28" height="14" rx="5" />
+      <rect x="33" y="58" width="28" height="14" rx="5" />
+      <rect x="66" y="58" width="32" height="14" rx="5" />
+    </g>
+    <g fill="currentColor" stroke="none" fontFamily="serif" fontWeight="600" fontSize="10" textAnchor="middle">
+      <text x="44" y="13">XP</text>
+      <text x="20" y="41">Spec</text>
+      <text x="65" y="41">X′</text>
+      <text x="47" y="69">X</text>
+      <text x="82" y="69">Comp</text>
+    </g>
+  </svg>
+);
+
+export const CaseIcon = ({ label = '+CASE', ...p }: SVGProps<SVGSVGElement> & { label?: string }) => (
+  <svg {...base(p)} viewBox="0 0 100 76" aria-hidden="true">
+    <text x="50" y="44" textAnchor="middle" fontFamily="serif" fontSize={Math.min(23, 130 / (label.length + 2))} fontWeight="600" fill="currentColor" stroke="none">
+      [{label}]
+    </text>
+  </svg>
+);
+
 export const DownloadIcon = (p: SVGProps<SVGSVGElement>) => (
   <svg {...base(p)}>
     <path d="M12 3v12M7 11l5 5 5-5M5 21h14" />
