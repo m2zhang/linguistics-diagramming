@@ -122,8 +122,9 @@ describe('resolveShortcut', () => {
   it('maps the library function keys', () => {
     expect(press('F1')).toEqual({ kind: 'insertPreset', index: 0 });
     expect(press('F3')).toEqual({ kind: 'insertPreset', index: 2 });
-    expect(press('F4')).toEqual({ kind: 'loadTemplate', index: 0 });
-    expect(press('F9')).toEqual({ kind: 'loadTemplate', index: 5 });
+    expect(press('F4')).toEqual({ kind: 'insertPreset', index: 3 });
+    expect(press('F5')).toEqual({ kind: 'loadTemplate', index: 0 });
+    expect(press('F10')).toEqual({ kind: 'loadTemplate', index: 5 });
   });
 
   it('returns null for keys it does not claim', () => {

@@ -1,8 +1,9 @@
-import { TreeNode } from '../model/types';
 import { FEATURE_DND_TYPE, LINK_FEATURE_GRID, THETA_ROLE_GRID } from '../model/features';
 import { PRESET_KEYS } from '../model/shortcuts';
-import { BinaryIcon, LinkFeatureIcon, NodeDownIcon, TernaryIcon, ThetaRoleIcon } from './icons';
+import { BinaryIcon, LinkFeatureIcon, NodeDownIcon, TernaryIcon, ThetaRoleIcon, TriangleIcon } from './icons';
+import { cloneWithNewIds, TreeNode } from '../model/types';
 import { useUiStore } from '../store/uiStore';
+import { findNode, useTreeStore } from '../store/treeStore';
 
 function ChevronLeftIcon() {
   return (
@@ -71,6 +72,13 @@ export const PRESETS: Preset[] = [
     icon: <LinkFeatureIcon className="preset-icon" />,
     feature: LINK_FEATURE_GRID,
   },
+  {
+    id: 'triangle',
+    name: 'Triangle',
+    desc: 'Phrase with triangle',
+    icon: <TriangleIcon className="preset-icon" />,
+    build: () => node('XP', [{ id: 'preset', label: 'text', children: [], triangle: true }]),
+  },
 ];
 
 /** F-key advertised on a preset chip, or null when it has no binding.
@@ -96,6 +104,25 @@ export function NodeLibrary() {
   };
   const toggleSidebar = useUiStore((s) => s.toggleSidebar);
   const locked = useUiStore((s) => s.locked);
+  const toast = useUiStore((s) => s.toast);
+
+  const tree = useTreeStore((s) => s.tree);
+  const selectedId = useTreeStore((s) => s.selectedId);
+  const attachPreset = useTreeStore((s) => s.attachPreset);
+  const replaceTree = useTreeStore((s) => s.replaceTree);
+
+  const handlePresetClick = (preset: Preset) => {
+    if (locked) return;
+    const built = preset.build();
+    if (selectedId && findNode(tree, selectedId)) {
+      attachPreset(selectedId, built);
+    } else if (tree) {
+      attachPreset(tree.id, built);
+    } else {
+      replaceTree(cloneWithNewIds(built));
+    }
+    toast(`Added ${preset.name}`, 'success');
+  };
 
   return (
     <div className="section">
@@ -116,6 +143,7 @@ export function NodeLibrary() {
             className="preset"
             draggable={!locked}
             onDragStart={(e) => onDragStart(e, p)}
+            onClick={() => handlePresetClick(p)}
           >
             {p.icon}
             <div>

@@ -422,4 +422,16 @@ describe('replacing the tree from a drawing', () => {
     expect(useTreeStore.getState().annotations.notes[0].step).toBe(1);
     expect(useTreeStore.getState().currentStep).toBe(1);
   });
+
+  it('toggles triangle property on nodes', () => {
+    useTreeStore.getState().setTreeFromBracket('[S [NP [N cat]]] ');
+    const npNode = useTreeStore.getState().tree!.children[0];
+    expect(npNode.triangle).toBeUndefined();
+
+    useTreeStore.getState().setNodeTriangle([npNode.id], true);
+    expect(useTreeStore.getState().tree!.children[0].triangle).toBe(true);
+
+    useTreeStore.getState().setNodeTriangle([npNode.id], false);
+    expect(useTreeStore.getState().tree!.children[0].triangle).toBeUndefined();
+  });
 });

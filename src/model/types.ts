@@ -121,6 +121,8 @@ export interface TreeNode {
    * before stepping existed present as a single step.
    */
   step?: number;
+  /** When true, the branch connecting this node to its parent renders as a triangle (roof). */
+  triangle?: boolean;
 }
 
 let _idCounter = 0;
@@ -206,6 +208,7 @@ export function cloneWithNewIds(node: TreeNode): TreeNode {
   if (node.style) copy.style = { ...node.style };
   if (node.features) copy.features = [...node.features];
   if (node.featureColors) copy.featureColors = { ...node.featureColors };
+  if (node.triangle !== undefined) copy.triangle = node.triangle;
   return copy;
 }
 
@@ -231,6 +234,7 @@ export function carryOverDecorations(from: TreeNode | null, to: TreeNode): TreeN
   // Step stamps must survive a re-parse too, or typing in the bracket editor
   // would reset the whole tree to step 0.
   if (from.step !== undefined) next.step = from.step;
+  if (from.triangle !== undefined) next.triangle = from.triangle;
   return next;
 }
 

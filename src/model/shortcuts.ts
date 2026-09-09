@@ -33,17 +33,17 @@ const TOOL_KEYS: Record<string, CanvasTool> = {
   e: 'erase',
 };
 
-/** F1–F3 attach a node preset. Indexes into NodeLibrary's PRESETS. */
-export const PRESET_KEYS: Record<string, number> = { F1: 0, F2: 1, F3: 2 };
+/** F1–F4 attach a node preset. Indexes into NodeLibrary's PRESETS. */
+export const PRESET_KEYS: Record<string, number> = { F1: 0, F2: 1, F3: 2, F4: 3 };
 
-/** F4–F9 load a starter tree. Indexes into model/templates' TEMPLATES. */
+/** F5–F10 load a starter tree. Indexes into model/templates' TEMPLATES. */
 export const TEMPLATE_KEYS: Record<string, number> = {
-  F4: 0,
-  F5: 1,
-  F6: 2,
-  F7: 3,
-  F8: 4,
-  F9: 5,
+  F5: 0,
+  F6: 1,
+  F7: 2,
+  F8: 3,
+  F9: 4,
+  F10: 5,
 };
 
 export type Direction = 'up' | 'down' | 'left' | 'right';
@@ -249,12 +249,13 @@ export const SHORTCUT_GROUPS: ShortcutGroup[] = [
       { keys: ['F1'], label: 'Add Node Down' },
       { keys: ['F2'], label: 'Add Binary Branch' },
       { keys: ['F3'], label: 'Add Ternary Branch' },
-      { keys: ['F4'], label: 'Load Simple Sentence' },
-      { keys: ['F5'], label: 'Load Noun Phrase' },
-      { keys: ['F6'], label: 'Load NP with Adjective' },
-      { keys: ['F7'], label: 'Load Transitive VP' },
-      { keys: ['F8'], label: 'Load Prepositional Phrase' },
-      { keys: ['F9'], label: 'Load Embedded Clause' },
+      { keys: ['F4'], label: 'Add Triangle' },
+      { keys: ['F5'], label: 'Load Simple Sentence' },
+      { keys: ['F6'], label: 'Load Noun Phrase' },
+      { keys: ['F7'], label: 'Load NP with Adjective' },
+      { keys: ['F8'], label: 'Load Transitive VP' },
+      { keys: ['F9'], label: 'Load Prepositional Phrase' },
+      { keys: ['F10'], label: 'Load Embedded Clause' },
     ],
   },
   {

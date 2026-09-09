@@ -18,6 +18,7 @@ export interface PositionedNode {
    * its parent's — a child revealed before its parent would hang in mid-air.
    */
   step: number;
+  triangle?: boolean;
 }
 
 export interface Edge {
@@ -25,6 +26,7 @@ export interface Edge {
   to: { x: number; y: number };
   parentId: string;
   childId: string;
+  triangle?: boolean;
 }
 
 export interface LayoutResult {
@@ -232,6 +234,7 @@ export function layoutTree(root: TreeNode, options: LayoutOptions = {}): LayoutR
       features: node.features,
       featureColors: node.featureColors,
       step,
+      triangle: node.triangle,
     });
 
     for (const child of node.children) {
@@ -243,6 +246,7 @@ export function layoutTree(root: TreeNode, options: LayoutOptions = {}): LayoutR
         to: { x: cx, y: cy },
         parentId: node.id,
         childId: child.id,
+        triangle: child.triangle,
       });
       collect(child, step);
     }
