@@ -1,7 +1,8 @@
 import { FEATURE_DND_TYPE, LINK_FEATURE_GRID, THETA_ROLE_GRID } from '../model/features';
 import { PRESET_KEYS } from '../model/shortcuts';
-import { BinaryIcon, LinkFeatureIcon, NodeDownIcon, TernaryIcon, ThetaRoleIcon, TriangleIcon } from './icons';
+import { BinaryIcon, CaseIcon, LinkFeatureIcon, NodeDownIcon, TernaryIcon, ThetaRoleIcon, TriangleIcon, XBarIcon } from './icons';
 import { cloneWithNewIds, TreeNode } from '../model/types';
+import { useState } from 'react';
 import { useUiStore } from '../store/uiStore';
 import { findNode, useTreeStore } from '../store/treeStore';
 
@@ -79,6 +80,13 @@ export const PRESETS: Preset[] = [
     icon: <TriangleIcon className="preset-icon" />,
     build: () => node('XP', [{ id: 'preset', label: 'text', children: [], triangle: true }]),
   },
+  {
+    id: 'x-bar',
+    name: 'X-Bar',
+    desc: 'Specifier, head, and complement',
+    icon: <XBarIcon className="preset-icon" />,
+    build: () => node('XP', [node('Spec'), node('X′', [node('X'), node('Comp')])]),
+  },
 ];
 
 /** F-key advertised on a preset chip, or null when it has no binding.
@@ -110,6 +118,25 @@ export function NodeLibrary() {
   const selectedId = useTreeStore((s) => s.selectedId);
   const attachPreset = useTreeStore((s) => s.attachPreset);
   const replaceTree = useTreeStore((s) => s.replaceTree);
+  const addNodeFeature = useTreeStore((s) => s.addNodeFeature);
+  const [caseText, setCaseText] = useState('');
+  const caseLabel = caseText.trim().replace(/^\[|\]$/g, '').trim();
+
+  const handleCaseClick = () => {
+    if (locked) return;
+    if (!caseLabel) {
+      toast('Enter a case label first.', 'info');
+      return;
+    }
+    const target = selectedId ? findNode(tree, selectedId) ?? tree : tree;
+    if (!target) {
+      replaceTree(cloneWithNewIds({ ...node('X'), features: [caseLabel] }));
+    } else if (!addNodeFeature(target.id, caseLabel)) {
+      toast(`Already tagged [${caseLabel}]`, 'info');
+      return;
+    }
+    toast(`Added [${caseLabel}]`, 'success');
+  };
 
   const handlePresetClick = (preset: Preset) => {
     if (locked) return;
@@ -153,6 +180,53 @@ export function NodeLibrary() {
             {presetKey(index) && <span className="shortcut-hint">{presetKey(index)}</span>}
           </div>
         ))}
+        <label className="case-label-field">
+          Case label
+          <input
+            type="text"
+            value={caseText}
+            onChange={(e) => setCaseText(e.target.value)}
+            onKeyDown={(e) => {
+              e.stopPropagation();
+              if (e.key === 'Enter') {
+                e.preventDefault();
+                handleCaseClick();
+              }
+            }}
+            placeholder="e.g. NOM, ACC, +CASE"
+            disabled={locked}
+          />
+        </label>
+        <div
+          className="preset"
+          role="button"
+          tabIndex={locked ? -1 : 0}
+          aria-disabled={locked || !caseLabel}
+          draggable={!locked && !!caseLabel}
+          onDragStart={(e) => {
+            if (locked || !caseLabel) {
+              e.preventDefault();
+              return;
+            }
+            e.dataTransfer.setData(FEATURE_DND_TYPE, caseLabel);
+            e.dataTransfer.effectAllowed = 'copy';
+          }}
+          onClick={handleCaseClick}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+              e.stopPropagation();
+              handleCaseClick();
+            }
+          }}
+          title="Fill in a case label, then click or drag onto a node"
+        >
+          <CaseIcon className="preset-icon" label={caseLabel || '…'} />
+          <div>
+            <div className="preset-name">Case</div>
+            <div className="preset-desc">{caseLabel ? `Add [${caseLabel}] below a node` : 'Fill in the label above'}</div>
+          </div>
+        </div>
       </div>
       <div className="hint">
         {locked ? (
