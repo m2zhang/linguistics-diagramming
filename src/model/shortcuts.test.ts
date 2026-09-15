@@ -123,7 +123,10 @@ describe('resolveShortcut', () => {
     expect(press('F1')).toEqual({ kind: 'insertPreset', index: 0 });
     expect(press('F3')).toEqual({ kind: 'insertPreset', index: 2 });
     expect(press('F4')).toEqual({ kind: 'insertPreset', index: 3 });
-    expect(press('F5')).toEqual({ kind: 'loadTemplate', index: 0 });
+    expect(press('F5')).toEqual({ kind: 'insertPreset', index: 4 });
+    expect(PRESETS[4].id).toBe('x-bar');
+    expect(press('F5', {}, { typing: true })).toBeNull();
+    expect(press('F11')).toEqual({ kind: 'loadTemplate', index: 0 });
     expect(press('F10')).toEqual({ kind: 'loadTemplate', index: 5 });
   });
 
@@ -131,6 +134,56 @@ describe('resolveShortcut', () => {
     for (const key of ['q', 'j', 'F12', 'Tab', 'PageUp', ']']) {
       expect(press(key)).toBeNull();
     }
+  });
+});
+
+describe('X-Bar shortcut regression', () => {
+  it.each([true, false])('allows F5 for instructor access = %s', (canUseInstructorTools) => {
+    const action = press('F5', {}, { canUseInstructorTools });
+    expect(action?.kind).toBe('insertPreset');
+    if (action?.kind !== 'insertPreset') throw new Error('Expected a preset');
+    expect(PRESETS[action.index].name).toBe('X-Bar');
+    expect(PRESETS[action.index].build()).toMatchObject({
+      label: 'XP',
+      children: [
+        { label: 'Spec', children: [] },
+        { label: 'X′', children: [{ label: 'X', children: [] }, { label: 'Comp', children: [] }] },
+      ],
+    });
+  });
+
+  it.each(['F5', 'F11'])('ignores %s while typing or using browser modifiers', (key) => {
+    expect(press(key, {}, { typing: true })).toBeNull();
+    for (const modifier of ['ctrlKey', 'metaKey', 'altKey']) {
+      expect(press(key, { [modifier]: true })).toBeNull();
+    }
+  });
+
+  it('keeps Simple Sentence accessible through F11', () => {
+    const action = press('F11');
+    expect(action?.kind).toBe('loadTemplate');
+    if (action?.kind !== 'loadTemplate') throw new Error('Expected a template');
+    expect(TEMPLATES[action.index].name).toBe('Simple Sentence (S)');
+  });
+
+  it('keeps preset and template keys distinct', () => {
+    expect(Object.keys(PRESET_KEYS).filter((key) => key in TEMPLATE_KEYS)).toEqual([]);
+  });
+
+  it.each([
+    ['F6', 1], ['F7', 2], ['F8', 3], ['F9', 4], ['F10', 5],
+  ])('preserves the existing %s template shortcut', (key, index) => {
+    expect(press(key as string)).toEqual({ kind: 'loadTemplate', index });
+  });
+
+  it('documents the new assignments', () => {
+    const entries = SHORTCUT_GROUPS.find((group) => group.title === 'Library')!.entries;
+    expect(entries.filter((entry) => entry.keys.includes('F5'))).toEqual([
+      { keys: ['F5'], label: 'Add X-Bar' },
+    ]);
+    expect(entries.filter((entry) => entry.keys.includes('F11'))).toEqual([
+      { keys: ['F11'], label: 'Load Simple Sentence' },
+    ]);
   });
 });
 

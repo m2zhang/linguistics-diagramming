@@ -83,8 +83,8 @@ export const PRESETS: Preset[] = [
   {
     id: 'x-bar',
     name: 'X-Bar',
-    desc: 'Specifier, head, and complement',
-    icon: <XBarIcon className="preset-icon" />,
+    desc: 'XP → Spec + X′; X′ → X + complement',
+    icon: <XBarIcon className="preset-icon preset-icon-xbar" />,
     build: () => node('XP', [node('Spec'), node('X′', [node('X'), node('Comp')])]),
   },
 ];
