@@ -173,6 +173,10 @@
   flex-shrink: 0;
   color: var(--accent);
 }
+.preset .preset-icon-xbar {
+  width: 50px;
+  height: 40px;
+}
 .preset > div {
   min-width: 0;
   padding-right: 30px;

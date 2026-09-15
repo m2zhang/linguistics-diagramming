@@ -1,4 +1,5 @@
 import { TEMPLATES, templateToTree } from '../model/templates';
+import { TEMPLATE_KEYS } from '../model/shortcuts';
 import { useTreeStore } from '../store/treeStore';
 import { useUiStore } from '../store/uiStore';
 
@@ -24,7 +25,9 @@ export function TemplatePicker() {
           >
             <div className="t-name">{t.name}</div>
             <div className="t-desc">{t.description}</div>
-            <span className="shortcut-hint">F{index + 5}</span>
+            {Object.entries(TEMPLATE_KEYS).filter(([, templateIndex]) => templateIndex === index).map(([key]) => (
+              <span key={key} className="shortcut-hint">{key}</span>
+            ))}
           </button>
         ))}
       </div>

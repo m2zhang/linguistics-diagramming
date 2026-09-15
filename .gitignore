@@ -134,3 +134,6 @@ dist-ssr/
 server/dist/
 server/uploads/*
 !server/uploads/.gitkeep
+
+# Local notes
+/note/
