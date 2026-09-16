@@ -33,12 +33,12 @@ const TOOL_KEYS: Record<string, CanvasTool> = {
   e: 'erase',
 };
 
-/** F1–F4 attach a node preset. Indexes into NodeLibrary's PRESETS. */
-export const PRESET_KEYS: Record<string, number> = { F1: 0, F2: 1, F3: 2, F4: 3 };
+/** F1–F5 attach a node preset. Indexes into NodeLibrary's PRESETS. */
+export const PRESET_KEYS: Record<string, number> = { F1: 0, F2: 1, F3: 2, F4: 3, F5: 4 };
 
-/** F5–F10 load a starter tree. Indexes into model/templates' TEMPLATES. */
+/** F6–F11 load a starter tree. Indexes into model/templates' TEMPLATES. */
 export const TEMPLATE_KEYS: Record<string, number> = {
-  F5: 0,
+  F11: 0,
   F6: 1,
   F7: 2,
   F8: 3,
@@ -250,7 +250,8 @@ export const SHORTCUT_GROUPS: ShortcutGroup[] = [
       { keys: ['F2'], label: 'Add Binary Branch' },
       { keys: ['F3'], label: 'Add Ternary Branch' },
       { keys: ['F4'], label: 'Add Triangle' },
-      { keys: ['F5'], label: 'Load Simple Sentence' },
+      { keys: ['F5'], label: 'Add X-Bar' },
+      { keys: ['F11'], label: 'Load Simple Sentence' },
       { keys: ['F6'], label: 'Load Noun Phrase' },
       { keys: ['F7'], label: 'Load NP with Adjective' },
       { keys: ['F8'], label: 'Load Transitive VP' },

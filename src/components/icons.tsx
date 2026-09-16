@@ -80,15 +80,15 @@ export const TriangleIcon = (p: SVGProps<SVGSVGElement>) => (
 
 export const XBarIcon = (p: SVGProps<SVGSVGElement>) => (
   <svg {...base(p)} viewBox="0 0 100 76">
-    <path d="M44 16 20 30M44 16 65 30M65 44 47 58M65 44 84 58" strokeWidth="2" />
-    <g fill="var(--bg-panel)" strokeWidth="1.5">
+    <path d="M44 16 20 30M44 16 65 30M65 44 47 58M65 44 84 58" strokeWidth="5" />
+    <g fill="var(--bg-panel)" strokeWidth="3">
       <rect x="30" y="2" width="28" height="14" rx="5" />
       <rect x="3" y="30" width="34" height="14" rx="5" />
       <rect x="51" y="30" width="28" height="14" rx="5" />
       <rect x="33" y="58" width="28" height="14" rx="5" />
       <rect x="66" y="58" width="32" height="14" rx="5" />
     </g>
-    <g fill="currentColor" stroke="none" fontFamily="serif" fontWeight="600" fontSize="10" textAnchor="middle">
+    <g fill="currentColor" stroke="none" fontFamily="serif" fontWeight="800" fontSize="10" textAnchor="middle">
       <text x="44" y="13">XP</text>
       <text x="20" y="41">Spec</text>
       <text x="65" y="41">X′</text>
